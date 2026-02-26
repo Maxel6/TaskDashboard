@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Vicat - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="header-title">Suivi de Maintenance</div>
+    </div>
+
+    <div class="main-content">
+        <ul id="task-list"></ul>
+    </div>
+
+    <div class="footer-area">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="footer-banner">
+            <div class="annonce-label">Annonce</div>
+            <div class="annonce-sep"></div>
+            <div class="annonce-scroll">
+                <span id="annonce-text">Chargement…</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-dots">
+        <div class="page-dot active"></div>
+        <div class="page-dot"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/display.js') }}"></script>
+</body>
+
+</html>

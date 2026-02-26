@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Vicat - Dashboard 2</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+    <style>
+        /* Styles spécifiques à la page 2 */
+        .main-content {
+            align-items: center;
+            justify-content: center;
+        }
+
+        .placeholder-card {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 14px;
+            border: 1px dashed rgba(255, 255, 255, 0.12);
+            border-top-color: rgba(255, 255, 255, 0.2);
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            opacity: 0;
+            transform: translateY(18px);
+            animation: cardIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+            opacity: 0.15;
+        }
+
+        .placeholder-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 6px;
+            color: rgba(255, 255, 255, 0.15);
+            text-transform: uppercase;
+        }
+
+        /* Dégradé légèrement différent pour varier */
+        body::before {
+            background:
+                radial-gradient(ellipse 65% 55% at 80% 20%, rgba(37, 99, 235, 0.16) 0%, transparent 70%),
+                radial-gradient(ellipse 70% 60% at 15% 80%, rgba(15, 118, 110, 0.13) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 70% at 50% 50%, rgba(124, 58, 237, 0.09) 0%, transparent 65%);
+            animation: breathe 14s ease-in-out infinite alternate;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="header-title">— Page 2 —</div>
+    </div>
+
+    <div class="main-content">
+        <div class="placeholder-card">
+            <div class="placeholder-icon">🔧</div>
+            <div class="placeholder-text">Contenu à définir</div>
+        </div>
+    </div>
+
+    <div class="footer-area">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="footer-banner">
+            <div class="annonce-label">Annonce</div>
+            <div class="annonce-sep"></div>
+            <div class="annonce-scroll">
+                <span id="annonce-text">Chargement…</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-dots">
+        <div class="page-dot"></div>
+        <div class="page-dot active"></div>
+    </div>
+
+    <script>
+        const fill = document.getElementById('progress-fill');
+        const progressTrack = document.querySelector('.progress-track');
+        const t0 = Date.now();
+        let SWITCH_MS = 30 * 1000;
+        let pages_active = [1, 2];
+        let switchTimer = null;
+        let lastDisplay = null;
+
+        function applyDisplaySettings(display) {
+            if (!display) return;
+            const newPages = display.pages || [1, 2];
+            const newDuree = (display.duree || 30) * 1000;
+            const displayKey = JSON.stringify(display);
+
+            // Page courante (2) plus active → rediriger immédiatement
+            if (!newPages.includes(2)) {
+                window.location.href = newPages.includes(1) ? '/display1' : '/dashboard';
+                return;
+            }
+
+            if (displayKey === lastDisplay) return;
+            lastDisplay = displayKey;
+
+            const multiPage = newPages.length > 1;
+            if (progressTrack) progressTrack.style.display = multiPage ? 'block' : 'none';
+            document.querySelectorAll('.page-dot').forEach((dot, i) => {
+                dot.style.display = newPages.includes(i + 1) ? 'block' : 'none';
+            });
+
+            SWITCH_MS = newDuree;
+            pages_active = newPages;
+
+            if (switchTimer) clearTimeout(switchTimer);
+            if (multiPage) {
+                switchTimer = setTimeout(() => {
+                    window.location.href = '/display1';
+                }, SWITCH_MS);
+            }
+        }
+
+        setInterval(() => {
+            if (pages_active.length > 1) {
+                const pct = Math.min(((Date.now() - t0) / SWITCH_MS) * 100, 100);
+                fill.style.width = pct + '%';
+            }
+        }, 1000);
+
+        async function refreshAnnonce() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+
+                // Settings réactifs
+                applyDisplaySettings(data.display);
+
+                // Annonce
+                const el = document.getElementById('annonce-text');
+                const scroll = el.parentElement;
+                if (el.dataset.raw === data.annonce) return;
+                el.dataset.raw = data.annonce;
+                el.classList.remove('scrolling');
+                scroll.classList.remove('scrolling');
+                el.style.animation = 'none';
+                el.textContent = data.annonce;
+                void el.offsetWidth;
+                requestAnimationFrame(() => {
+                    if (el.scrollWidth > scroll.clientWidth) {
+                        const sep = '            ';
+                        el.textContent = data.annonce + sep + data.annonce + sep;
+                        const offsetPx = el.scrollWidth / 2;
+                        el.style.removeProperty('animation');
+                        el.style.setProperty('--marquee-offset', `-${offsetPx}px`);
+                        el.style.setProperty('--marquee-duration', `${offsetPx / 90}s`);
+                        el.classList.add('scrolling');
+                        scroll.classList.add('scrolling');
+                    } else {
+                        el.style.removeProperty('animation');
+                    }
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        setInterval(refreshAnnonce, 5000);
+        refreshAnnonce();
+    </script>
+</body>
+
+</html>

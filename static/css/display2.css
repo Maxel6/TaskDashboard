@@ -1,0 +1,43 @@
+.main-content {
+    align-items: center;
+    justify-content: center;
+}
+
+.placeholder-card {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border-radius: 14px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-top-color: rgba(255, 255, 255, 0.2);
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    opacity: 0;
+    transform: translateY(18px);
+    animation: cardIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+}
+
+.placeholder-icon {
+    font-size: 3rem;
+    opacity: 0.15;
+}
+
+.placeholder-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 6px;
+    color: rgba(255, 255, 255, 0.15);
+    text-transform: uppercase;
+}
+
+body::before {
+    background:
+        radial-gradient(ellipse 65% 55% at 80% 20%, rgba(37, 99, 235, 0.16) 0%, transparent 70%),
+        radial-gradient(ellipse 70% 60% at 15% 80%, rgba(15, 118, 110, 0.13) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 70% at 50% 50%, rgba(124, 58, 237, 0.09) 0%, transparent 65%);
+    animation: breathe 14s ease-in-out infinite alternate;
+}

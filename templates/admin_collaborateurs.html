@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_collaborateurs.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vicat — Collaborateurs</title>
+</head>
+
+<body>
+
+    <div class="topbar">
+        <a href="/admin" class="back-btn">←</a>
+        <div class="topbar-title">Collaborateurs</div>
+        <div class="collab-count">{{ data.collaborateurs | length }}</div>
+    </div>
+
+    <div class="page">
+
+        <div class="card">
+            <div class="card-title">＋ Ajouter</div>
+            <form action="/add_collaborateur" method="POST">
+                <div class="input-row">
+                    <input type="text" name="nom" placeholder="Prénom Nom (ex : Jean D.)" required>
+                    <button type="submit" class="btn-add">Ajouter</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="section-title">Équipe actuelle</div>
+        <div class="collab-list">
+            {% if data.collaborateurs %}
+            {% for collab in data.collaborateurs %}
+            <div class="collab-row" style="animation-delay: {{ loop.index0 * 50 }}ms">
+                <div class="collab-info">
+                    <div class="collab-avatar">{{ collab[0] }}</div>
+                    <span class="collab-name">{{ collab }}</span>
+                </div>
+                <a href="/delete_collaborateur/{{ loop.index0 }}" class="btn-delete"
+                    onclick="return confirm('Supprimer {{ collab }} ?')">Retirer</a>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="empty">Aucun collaborateur</div>
+            {% endif %}
+        </div>
+
+    </div>
+
+</body>
+
+</html>
