@@ -1,66 +1,43 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
-
 <body>
 
     <div class="topbar">
         <div class="topbar-title">Console Admin</div>
-        <a href="/admin/collaborateurs" class="topbar-link">👥 Équipe</a>
+        <a href="/admin/settings" class="topbar-link">⚙️ Réglages</a>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab(1)" id="tab1">Page 1 — Tâches</button>
+        <button class="tab-btn" onclick="switchTab(2)" id="tab2">Page 2 — Moteurs</button>
     </div>
 
     <div class="page">
 
+        <!-- ══ PAGE 1 — TÂCHES ══════════════════════════════════════════ -->
+        <div class="tab-panel" id="panel1">
+
+        <!-- Annonce -->
         <div class="card">
             <div class="card-title">📢 Annonce du jour</div>
             <form action="/update_annonce" method="POST">
-                <input type="text" name="annonce" value="{{ data.annonce }}"
-                    placeholder="Message affiché sur le dashboard…">
+                <input type="text" name="annonce" value="{{ data.annonce }}" placeholder="Message affiché sur le dashboard…">
                 <button type="submit" class="btn btn-neutral">Mettre à jour</button>
             </form>
         </div>
 
-        <div class="card">
-            <div class="card-title">🖥️ Affichage</div>
-            <form action="/update_display" method="POST">
-                <span class="equipe-label">Pages actives</span>
-                <div style="display:flex; gap:12px; margin-bottom:16px;">
-                    <label class="toggle-label">
-                        <input type="checkbox" name="page1" value="1" id="page1-cb" {% if 1 in data.display.pages
-                            %}checked{% endif %} onchange="checkAtLeastOne(this, 'page2-cb')">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">Page 1 — Tâches</span>
-                    </label>
-                    <label class="toggle-label">
-                        <input type="checkbox" name="page2" value="2" id="page2-cb" {% if 2 in data.display.pages
-                            %}checked{% endif %} onchange="checkAtLeastOne(this, 'page1-cb')">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">Page 2</span>
-                    </label>
-                </div>
-                <span class="equipe-label">Durée par page</span>
-                <div class="slider-container">
-                    <input type="range" name="duree" id="slider-duree" min="10" max="300" step="5"
-                        value="{{ data.display.duree }}" oninput="updateSliderLabel(this.value)">
-                    <div class="slider-value" id="slider-label">{{ data.display.duree }}s</div>
-                </div>
-                <div class="slider-bounds">
-                    <span>10s</span><span>5min</span>
-                </div>
-                <button type="submit" class="btn btn-neutral" style="margin-top:14px">Appliquer</button>
-            </form>
-        </div>
-
+        <!-- Nouvelle tâche -->
         <div class="card">
             <div class="card-title">＋ Nouvelle tâche</div>
             <form action="/add_task" method="POST">
                 <input type="text" name="tache" placeholder="Description de la tâche…" required>
+
                 <span class="equipe-label">Assigner à</span>
                 <div id="equipe-add">
                     <div class="equipe-row">
@@ -72,8 +49,8 @@
                         </select>
                     </div>
                 </div>
-                <button type="button" class="btn-add-person" onclick="addRow('equipe-add')">+ Ajouter une
-                    personne</button>
+                <button type="button" class="btn-add-person" onclick="addRow('equipe-add')">+ Ajouter une personne</button>
+
                 <select name="priorite">
                     <option value="basse">🟢 Priorité Basse</option>
                     <option value="moyenne">🟡 Priorité Moyenne</option>
@@ -83,9 +60,9 @@
             </form>
         </div>
 
+        <!-- Tâches en cours -->
         {% if data.taches %}
         <div class="section-title">Tâches en cours</div>
-
         {% for tache in data.taches %}
         <div class="task-card prio-{{ tache.priorite }}">
             <div class="task-header" onclick="toggleTask('{{ tache.id }}')" style="cursor:pointer">
@@ -95,7 +72,7 @@
                 </div>
                 <div class="task-actions">
                     <a href="/delete_task/{{ tache.id }}" class="btn-delete-task"
-                        onclick="event.stopPropagation(); return confirm('Supprimer cette tâche ?')">✕</a>
+                       onclick="event.stopPropagation(); return confirm('Supprimer cette tâche ?')">✕</a>
                     <button type="button" class="btn-accordion">
                         <span class="accordion-arrow" id="arrow-{{ tache.id }}">›</span>
                     </button>
@@ -111,7 +88,7 @@
                             <select name="equipe">
                                 <option value="" disabled>Choisir…</option>
                                 {% for c in data.collaborateurs %}
-                                <option value="{{ c }}" {% if c==personne %}selected{% endif %}>{{ c }}</option>
+                                <option value="{{ c }}" {% if c == personne %}selected{% endif %}>{{ c }}</option>
                                 {% endfor %}
                             </select>
                             {% if loop.index > 1 %}
@@ -120,13 +97,11 @@
                         </div>
                         {% endfor %}
                     </div>
-                    <button type="button" class="btn-add-person" onclick="addRow('equipe-edit-{{ tache.id }}')">+
-                        Ajouter une personne</button>
+                    <button type="button" class="btn-add-person" onclick="addRow('equipe-edit-{{ tache.id }}')">+ Ajouter une personne</button>
                     <select name="priorite">
-                        <option value="basse" {% if tache.priorite=='basse' %}selected{% endif %}>🟢 Basse</option>
-                        <option value="moyenne" {% if tache.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne
-                        </option>
-                        <option value="haute" {% if tache.priorite=='haute' %}selected{% endif %}>🔴 Haute</option>
+                        <option value="basse"   {% if tache.priorite=='basse'   %}selected{% endif %}>🟢 Basse</option>
+                        <option value="moyenne" {% if tache.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne</option>
+                        <option value="haute"   {% if tache.priorite=='haute'   %}selected{% endif %}>🔴 Haute</option>
                     </select>
                     <button type="submit" class="btn btn-save">Enregistrer</button>
                 </form>
@@ -141,6 +116,68 @@
             </a>
         </div>
 
+        </div><!-- /panel1 -->
+
+        <!-- ══ PAGE 2 — MOTEURS ══════════════════════════════════════════ -->
+        <div class="tab-panel hidden" id="panel2">
+
+        <!-- Nouveau moteur -->
+        <div class="card">
+            <div class="card-title">＋ Nouveau moteur</div>
+            <form action="/add_moteur" method="POST">
+                <input type="text" name="texte" placeholder="Description du moteur…" required>
+                <input type="text" name="emplacement" placeholder="Emplacement (ex: Zone A, Ligne 3…)">
+                <select name="priorite">
+                    <option value="basse">🟢 Priorité Basse</option>
+                    <option value="moyenne">🟡 Priorité Moyenne</option>
+                    <option value="haute">🔴 Priorité Haute</option>
+                </select>
+                <button type="submit" class="btn btn-primary">Ajouter au dashboard</button>
+            </form>
+        </div>
+
+        <!-- Moteurs en cours -->
+        {% if data.moteurs %}
+        <div class="section-title">Moteurs en cours</div>
+        {% for moteur in data.moteurs %}
+        <div class="task-card prio-{{ moteur.priorite }}">
+            <div class="task-header" onclick="toggleTask('m{{ moteur.id }}')" style="cursor:pointer">
+                <div class="task-summary-row">
+                    <span class="task-name">{{ moteur.texte }}</span>
+                    <span class="task-team-badge prio-{{ moteur.priorite }}">{{ moteur.emplacement }}</span>
+                </div>
+                <div class="task-actions">
+                    <a href="/delete_moteur/{{ moteur.id }}" class="btn-delete-task"
+                       onclick="event.stopPropagation(); return confirm('Supprimer ce moteur ?')">✕</a>
+                    <button type="button" class="btn-accordion">
+                        <span class="accordion-arrow" id="arrow-m{{ moteur.id }}">›</span>
+                    </button>
+                </div>
+            </div>
+            <div class="task-body" id="body-m{{ moteur.id }}">
+                <form action="/edit_moteur/{{ moteur.id }}" method="POST">
+                    <input type="text" name="texte" value="{{ moteur.texte }}">
+                    <input type="text" name="emplacement" value="{{ moteur.emplacement }}" placeholder="Emplacement…">
+                    <select name="priorite">
+                        <option value="basse"   {% if moteur.priorite=='basse'   %}selected{% endif %}>🟢 Basse</option>
+                        <option value="moyenne" {% if moteur.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne</option>
+                        <option value="haute"   {% if moteur.priorite=='haute'   %}selected{% endif %}>🔴 Haute</option>
+                    </select>
+                    <button type="submit" class="btn btn-save">Enregistrer</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <div class="danger-zone">
+            <a href="/delete_all_moteurs" onclick="return confirm('Supprimer TOUS les moteurs ?')" class="btn-danger">
+                🗑️ Tout supprimer
+            </a>
+        </div>
+
+        </div><!-- /panel2 -->
+
     </div>
 
     <script>
@@ -148,5 +185,4 @@
     </script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
-
 </html>
