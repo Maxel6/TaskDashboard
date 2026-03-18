@@ -123,7 +123,6 @@
             margin-bottom: 14px;
         }
 
-        /* ── INPUTS ─────────────────────────────────────────────── */
         input[type="text"], select {
             width: 100%;
             padding: 13px 16px;
@@ -149,7 +148,6 @@
 
         select option { background: #1e293b; color: #f0f4f8; }
 
-        /* ── BUTTONS ────────────────────────────────────────────── */
         .btn {
             width: 100%;
             padding: 14px;
@@ -198,7 +196,6 @@
         }
         .btn-add-person:hover { background: rgba(56,189,248,0.13); }
 
-        /* ── SECTION TITLE ──────────────────────────────────────── */
         .section-title {
             font-family: 'Bebas Neue', sans-serif;
             font-size: 1.3rem;
@@ -208,7 +205,6 @@
             padding-left: 2px;
         }
 
-        /* ── TASK CARDS ─────────────────────────────────────────── */
         .task-card {
             background: var(--glass);
             backdrop-filter: blur(20px);
@@ -252,7 +248,6 @@
         }
         .btn-delete-task:hover { background: rgba(239,68,68,0.22); }
 
-        /* ── EQUIPE ROWS ────────────────────────────────────────── */
         .equipe-label {
             font-size: 12px;
             font-weight: 600;
@@ -288,7 +283,6 @@
         }
         .btn-remove-person:hover { background: rgba(239,68,68,0.22); }
 
-        /* ── DANGER ZONE ────────────────────────────────────────── */
         .danger-zone {
             margin-top: 36px;
             padding: 20px;
@@ -312,9 +306,7 @@
         }
         .btn-danger:hover { background: var(--red); }
 
-        /* ── PRIORITY SELECT COLORS ─────────────────────────────── */
         select[name="priorite"] { border-left: 3px solid rgba(255,255,255,0.15); }
-/* ── TOGGLE SWITCH ──────────────────────────────────────────────────── */
 .toggle-label {
     display: flex;
     align-items: center;
@@ -348,7 +340,6 @@
 .toggle-label input:checked ~ .toggle-track .toggle-thumb { transform: translateX(18px); }
 .toggle-text { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7); }
 
-/* ── SLIDER ─────────────────────────────────────────────────────────── */
 .slider-container {
     display: flex;
     align-items: center;
@@ -402,7 +393,6 @@ input[type="range"]::-moz-range-thumb {
     margin-bottom: 2px;
 }
 
-/* ── ACCORDÉON TÂCHES ───────────────────────────────────────────────── */
 .task-header {
     display: flex;
     justify-content: space-between;
@@ -470,7 +460,6 @@ input[type="range"]::-moz-range-thumb {
     max-height: 900px;
     padding-top: 14px;
 }
-/* ── TOPBAR BACK ─────────────────────────────────────────────────────── */
 .topbar-back {
     font-size: 1.2rem;
     color: rgba(255,255,255,0.4);
@@ -483,7 +472,6 @@ input[type="range"]::-moz-range-thumb {
 }
 .topbar-back:hover { color: var(--blue); border-color: var(--blue); }
 
-/* ── TOGGLE SWITCH ───────────────────────────────────────────────────── */
 .toggle-label {
     display: flex;
     align-items: center;
@@ -517,7 +505,6 @@ input[type="range"]::-moz-range-thumb {
 .toggle-label input:checked ~ .toggle-track .toggle-thumb { transform: translateX(18px); }
 .toggle-text { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7); }
 
-/* ── SLIDER ──────────────────────────────────────────────────────────── */
 .slider-container {
     display: flex;
     align-items: center;
@@ -569,7 +556,6 @@ input[type="range"]::-moz-range-thumb {
     margin-bottom: 2px;
 }
 
-/* ── NOTIF STATUS ────────────────────────────────────────────────────── */
 .notif-status {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 0.9rem;
@@ -586,7 +572,6 @@ input[type="range"]::-moz-range-thumb {
     border-color: rgba(16,185,129,0.25);
 }
 
-/* ── ACCORDÉON TÂCHES ───────────────────────────────────────────────── */
 .task-header {
     display: flex;
     align-items: center;
@@ -656,7 +641,6 @@ input[type="range"]::-moz-range-thumb {
     padding-top: 14px;
 }
 
-/* ── ONGLETS ─────────────────────────────────────────────────────────── */
 .tab-bar {
     display: flex;
     gap: 8px;
@@ -688,7 +672,6 @@ input[type="range"]::-moz-range-thumb {
 .tab-panel { display: block; }
 .tab-panel.hidden { display: none; }
 
-/* ── NOTIF TOGGLE ────────────────────────────────────────────────────── */
 .notif-toggle {
     background: none;
     border: none;
@@ -731,7 +714,6 @@ input[type="range"]::-moz-range-thumb {
     background: #10b981;
 }
 
-/* ── TOGGLE NOTIFICATIONS ────────────────────────────────────────────── */
 .notif-row {
     display: flex;
     align-items: center;
@@ -781,7 +763,6 @@ input[type="range"]::-moz-range-thumb {
     transform: translateX(26px);
 }
 
-/* ── NOTIF ROW ───────────────────────────────────────────────────────── */
 .notif-row {
     display: flex;
     align-items: center;

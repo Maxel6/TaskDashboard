@@ -20,10 +20,8 @@
 
     <div class="page">
 
-        <!-- ══ PAGE 1 — TÂCHES ══════════════════════════════════════════ -->
         <div class="tab-panel" id="panel1">
 
-        <!-- Annonce -->
         <div class="card">
             <div class="card-title">📢 Annonce du jour</div>
             <form action="/update_annonce" method="POST">
@@ -32,7 +30,6 @@
             </form>
         </div>
 
-        <!-- Nouvelle tâche -->
         <div class="card">
             <div class="card-title">＋ Nouvelle tâche</div>
             <form action="/add_task" method="POST">
@@ -116,12 +113,10 @@
             </a>
         </div>
 
-        </div><!-- /panel1 -->
+        </div>
 
-        <!-- ══ PAGE 2 — MOTEURS ══════════════════════════════════════════ -->
         <div class="tab-panel hidden" id="panel2">
 
-        <!-- Nouveau moteur -->
         <div class="card">
             <div class="card-title">＋ Nouveau moteur</div>
             <form action="/add_moteur" method="POST">
@@ -136,7 +131,6 @@
             </form>
         </div>
 
-        <!-- Moteurs en cours -->
         {% if data.moteurs %}
         <div class="section-title">Moteurs en cours</div>
         {% for moteur in data.moteurs %}
@@ -176,8 +170,7 @@
             </a>
         </div>
 
-        </div><!-- /panel2 -->
-
+        </div>
     </div>
 
     <script>

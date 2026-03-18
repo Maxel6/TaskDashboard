@@ -1,13 +1,14 @@
 // ── Horloge ────────────────────────────────────────────────────────────
 let timeRefSeconds = 0;
-const MONTHS = ['JAN','FÉV','MAR','AVR','MAI','JUN','JUL','AOÛ','SEP','OCT','NOV','DÉC'];
+const MONTHS = ['JANVIER','FÉVRIER','MARS','AVRIL','MAI','JUIN','JUILLET','AOÛT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DÉCEMBRE'];
+const DAYS   = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
 
 function updateClock() {
     const now = new Date(Date.now() + timeRefSeconds * 1000);
     const clockEl = document.getElementById('clock');
     const dateEl  = document.getElementById('date');
     if (clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    if (dateEl)  dateEl.textContent  = now.getDate() + ' ' + MONTHS[now.getMonth()];
+    if (dateEl)  dateEl.textContent  = DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -121,7 +122,18 @@ setInterval(() => {
 // ── Notifications ─────────────────────────────────────────────────────
 const STORAGE_KEY_T = 'tasks_count';
 const STORAGE_KEY_M = 'moteurs_count';
-const notifAudio    = new Audio('/static/sounds/notification.wav');
+const notifAudio = new Audio('/static/sounds/notification.wav');
+notifAudio.preload = 'auto';
+
+// Débloquer l'audio au premier touch (requis par les navigateurs)
+let audioUnlocked = false;
+function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    notifAudio.play().then(() => { notifAudio.pause(); notifAudio.currentTime = 0; }).catch(() => {});
+}
+document.addEventListener('click',     unlockAudio, { once: false });
+document.addEventListener('touchstart', unlockAudio, { once: false });
 
 function playBeep() {
     try { notifAudio.currentTime = 0; notifAudio.play(); } catch(e) {}
