@@ -95,7 +95,7 @@ function applyDisplaySettings(display) {
     const newPages = display.pages || [1, 2];
     const newDuree = (display.duree || 30) * 1000;
     if (!newPages.includes(2)) {
-        window.location.href = newPages.includes(1) ? '/display' : '/dashboard';
+        window.location.href = newPages.includes(1) ? '/display1' : '/dashboard';
         return;
     }
     const multiPage = newPages.length > 1;
@@ -107,7 +107,7 @@ function applyDisplaySettings(display) {
     pages_active = newPages;
     if (switchTimer) clearTimeout(switchTimer);
     if (multiPage) {
-        switchTimer = setTimeout(() => { window.location.href = '/display'; }, SWITCH_MS);
+        switchTimer = setTimeout(() => { window.location.href = '/display1'; }, SWITCH_MS);
     }
 }
 
