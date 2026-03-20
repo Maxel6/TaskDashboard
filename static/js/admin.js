@@ -3,7 +3,6 @@ function buildOptions() {
     return '<option value="" disabled>Choisir…</option>' +
         COLLABORATEURS.map(c => `<option value="${c}">${c}</option>`).join('');
 }
-
 function addRow(containerId) {
     const container = document.getElementById(containerId);
     const row = document.createElement('div');
@@ -13,14 +12,13 @@ function addRow(containerId) {
         <button type="button" class="btn-remove-person" onclick="removeRow(this)">−</button>`;
     container.appendChild(row);
 }
-
 function removeRow(btn) {
     btn.closest('.equipe-row').remove();
 }
 
 // ── Slider durée ───────────────────────────────────────────────────────
-function updateSliderLabel(val) {
-    const label = document.getElementById('slider-label');
+function updateSliderLabel(val, labelId) {
+    const label = document.getElementById(labelId || 'slider-label');
     if (!label) return;
     if (val >= 60) {
         const m = Math.floor(val / 60);
@@ -30,8 +28,11 @@ function updateSliderLabel(val) {
         label.textContent = val + 's';
     }
 }
-const slider = document.getElementById('slider-duree');
-if (slider) updateSliderLabel(slider.value);
+// Init sliders au chargement
+const slider1 = document.getElementById('slider-duree1');
+if (slider1) updateSliderLabel(slider1.value, 'slider-label1');
+const slider2 = document.getElementById('slider-duree2');
+if (slider2) updateSliderLabel(slider2.value, 'slider-label2');
 
 // ── Protection : au moins une page toujours cochée ────────────────────
 function checkAtLeastOne(changed, otherId) {

@@ -72,15 +72,27 @@
                         <span class="toggle-text">Page 2 — Moteurs</span>
                     </label>
                 </div>
-                <span class="equipe-label">Durée par page</span>
+
+                <span class="equipe-label">Durée Page 1 — Tâches</span>
                 <div class="slider-container">
-                    <input type="range" name="duree" id="slider-duree"
+                    <input type="range" name="duree1" id="slider-duree1"
                            min="10" max="300" step="5"
-                           value="{{ data.display.duree }}"
-                           oninput="updateSliderLabel(this.value)">
-                    <div class="slider-value" id="slider-label">{{ data.display.duree }}s</div>
+                           value="{{ data.display.duree1 }}"
+                           oninput="updateSliderLabel(this.value, 'slider-label1')">
+                    <div class="slider-value" id="slider-label1">{{ data.display.duree1 }}s</div>
+                </div>
+                <div class="slider-bounds" style="margin-bottom:14px;"><span>10s</span><span>5min</span></div>
+
+                <span class="equipe-label">Durée Page 2 — Moteurs</span>
+                <div class="slider-container">
+                    <input type="range" name="duree2" id="slider-duree2"
+                           min="10" max="300" step="5"
+                           value="{{ data.display.duree2 }}"
+                           oninput="updateSliderLabel(this.value, 'slider-label2')">
+                    <div class="slider-value" id="slider-label2">{{ data.display.duree2 }}s</div>
                 </div>
                 <div class="slider-bounds"><span>10s</span><span>5min</span></div>
+
                 <button type="submit" class="btn btn-neutral" style="margin-top:14px">Appliquer</button>
             </form>
         </div>
@@ -112,7 +124,6 @@
     <script>
         const COLLABORATEURS = {{ data.collaborateurs | tojson }};
 
-        // ── Toggle notifications (localStorage) ───────────────────────
         const notifCb = document.getElementById('notif-cb');
         notifCb.checked = localStorage.getItem('notif') !== 'off';
 

@@ -16,7 +16,7 @@ def load_data():
             "taches": [],
             "moteurs": [],
             "collaborateurs": ["Bastien Z", "Florian C", "Mor F", "Pascal O", "Patrick L", "Sebastien B", "Silvain R"],
-            "display": {"pages": [1, 2], "duree": 30},
+            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30},
             "time_ref": 0
         }
         save_data(initial_data)
@@ -33,8 +33,21 @@ def load_data():
         data['moteurs'] = []
         changed = True
     if 'display' not in data:
-        data['display'] = {"pages": [1, 2], "duree": 30}
+        data['display'] = {"pages": [1, 2], "duree1": 30, "duree2": 30}
         changed = True
+    else:
+        # Migration duree → duree1 + duree2
+        if 'duree' in data['display'] and 'duree1' not in data['display']:
+            d = data['display'].pop('duree')
+            data['display']['duree1'] = d
+            data['display']['duree2'] = d
+            changed = True
+        if 'duree1' not in data['display']:
+            data['display']['duree1'] = 30
+            changed = True
+        if 'duree2' not in data['display']:
+            data['display']['duree2'] = 30
+            changed = True
     if 'time_ref' not in data:
         data['time_ref'] = 0
         changed = True
@@ -99,7 +112,7 @@ def api_data():
 @app.route('/update_annonce', methods=['POST'])
 def update_annonce():
     data = load_data()
-    data['annonce'] = request.form.get('annonce', '').strip() or data['annonce']
+    data['annonce'] = request.form.get('annonce', '').strip()  # vide autorisé
     save_data(data)
     return redirect(url_for('admin'))
 
@@ -212,9 +225,11 @@ def update_display():
     if request.form.get('page1'): pages.append(1)
     if request.form.get('page2'): pages.append(2)
     if not pages: pages = [1]
-    try:    duree = max(10, min(300, int(request.form.get('duree', 30))))
-    except: duree = 30
-    data['display'] = {"pages": pages, "duree": duree}
+    try:    duree1 = max(10, min(300, int(request.form.get('duree1', 30))))
+    except: duree1 = 30
+    try:    duree2 = max(10, min(300, int(request.form.get('duree2', 30))))
+    except: duree2 = 30
+    data['display'] = {"pages": pages, "duree1": duree1, "duree2": duree2}
     save_data(data)
     return redirect(url_for('admin_settings'))
 

@@ -95,7 +95,7 @@ function applyDisplaySettings(display) {
     if (displayKey === lastDisplayHash) return;
     lastDisplayHash = displayKey;
     const newPages = display.pages || [1, 2];
-    const newDuree = (display.duree || 30) * 1000;
+    const newDuree = (display.duree1 || display.duree || 30) * 1000;
     if (!newPages.includes(1)) {
         window.location.href = newPages.includes(2) ? '/display2' : '/dashboard';
         return;
