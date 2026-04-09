@@ -10,6 +10,7 @@ function updateClock() {
     if (clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     if (dateEl)  dateEl.textContent  = DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
+
 setInterval(updateClock, 1000);
 updateClock();
 
@@ -167,13 +168,17 @@ if (localStorage.getItem('notif_pending') === '1' && localStorage.getItem('notif
 async function refreshData() {
     try {
         const res  = await fetch('/api/data');
+        if (!res.ok) throw new Error('Erreur réseau');
         const data = await res.json();
         if (data.time_ref !== undefined) timeRefSeconds = data.time_ref;
         applyDisplaySettings(data.display);
         updateAnnonce(data.annonce);
         checkNotifications(data);
         updateTaches(data.moteurs);
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error('Erreur de rafraîchissement des données:', e.message);
+        // Le dashboard continue de fonctionner avec les données en cache
+    }
 }
 
 setInterval(refreshData, 10000);
