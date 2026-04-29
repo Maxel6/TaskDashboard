@@ -11,12 +11,12 @@
 }
 
 :root {
-    --low:    #10b981;
-    --medium: #f59e0b;
-    --high:   #ef4444;
-    --blue:   #38bdf8;
-    --glass:  rgba(255,255,255,0.06);
-    --border: rgba(255,255,255,0.10);
+    --low:        #10b981;
+    --medium:     #f59e0b;
+    --high:       #ef4444;
+    --blue:       #38bdf8;
+    --glass:      rgba(255,255,255,0.06);
+    --border:     rgba(255,255,255,0.10);
     --border-top: rgba(255,255,255,0.22);
 }
 
@@ -30,11 +30,9 @@ body {
     flex-direction: column;
     padding: 28px 32px 20px;
     overflow: hidden;
-    position: relative;
     background: #0b1220;
 }
 
-/* Fond dégradé animé qui "respire" */
 body::before {
     content: '';
     position: fixed;
@@ -44,9 +42,9 @@ body::before {
         radial-gradient(ellipse 60% 70% at 80% 70%, rgba(15,118,110,0.14) 0%, transparent 70%),
         radial-gradient(ellipse 80% 50% at 50% 100%, rgba(124,58,237,0.10) 0%, transparent 60%);
     z-index: 0;
+    pointer-events: none;
 }
 
-/* Grain de texture subtil */
 body::after {
     content: '';
     position: fixed;
@@ -57,14 +55,8 @@ body::after {
     pointer-events: none;
 }
 
-    33%  { transform: scale(1.06) rotate(1deg);   opacity: 1;   }
-    66%  { transform: scale(0.97) rotate(-1deg);  opacity: 0.9; }
-    100% { transform: scale(1.04) rotate(0.5deg); opacity: 1;   }
-}
-
 .header, .main-content, .footer-area { position: relative; z-index: 1; }
 
-/* ── HEADER ── */
 .header {
     display: flex;
     align-items: center;
@@ -91,7 +83,6 @@ body::after {
     color: rgba(255,255,255,0.55);
     line-height: 1;
     flex-shrink: 0;
-    text-align: left;
 }
 
 .header-clock {
@@ -101,10 +92,8 @@ body::after {
     color: rgba(255,255,255,0.9);
     line-height: 1;
     flex-shrink: 0;
-    text-align: right;
 }
 
-/* ── CARTES ── */
 .main-content {
     flex: 1;
     display: flex;
@@ -170,8 +159,6 @@ body::after {
 .task-item.prio-moyenne { border-left: 5px solid var(--medium); }
 .task-item.prio-basse   { border-left: 5px solid var(--low); }
 
-}
-
 .side-block { width: 150px; flex-shrink: 0; }
 
 .task-info {
@@ -203,7 +190,6 @@ body::after {
 
 .badge-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-/* ── BAS DE PAGE ── */
 .footer-area {
     flex-shrink: 0;
     display: flex;
@@ -240,6 +226,7 @@ body::after {
     display: flex;
     align-items: center;
     gap: 20px;
+    overflow: hidden;
 }
 
 .annonce-label {
@@ -253,7 +240,8 @@ body::after {
 }
 
 .annonce-sep {
-    width: 1px; height: 36px;
+    width: 1px;
+    height: 36px;
     background: rgba(239,68,68,0.28);
     flex-shrink: 0;
 }
@@ -262,37 +250,51 @@ body::after {
     flex: 1;
     overflow: hidden;
     position: relative;
+    height: 2.4rem;
 }
 
-.annonce-scroll.scrolling {
-    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+.annonce-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    height: 100%;
 }
 
-#annonce-text {
+.annonce-track span {
     font-size: 1.9rem;
     font-weight: 700;
     color: #fff;
     letter-spacing: -0.01em;
     line-height: 1.1;
     white-space: nowrap;
-    display: inline-block;
+    padding-right: 80px;
 }
 
-#annonce-text.scrolling {
-    animation: marquee var(--marquee-duration, 20s) linear infinite;
+.annonce-track.track-1 {
+    animation: marquee-track var(--marquee-duration, 20s) linear infinite;
 }
 
-@keyframes marquee {
-    0%   { transform: translateX(0); }
-    100% { transform: translateX(var(--marquee-offset, -50%)); }
+.annonce-track.track-2 {
+    animation: marquee-track var(--marquee-duration, 20s) linear infinite;
+    animation-delay: calc(var(--marquee-duration, 20s) / -2);
 }
 
-/* ── INDICATEUR DE PAGE ── */
+@keyframes marquee-track {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100vw); }
+}
+
 .page-dots {
     position: fixed;
-    bottom: 14px; right: 18px;
-    display: flex; gap: 5px;
+    bottom: 14px;
+    right: 18px;
+    display: flex;
+    gap: 5px;
     z-index: 10;
 }
+
 .page-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); }
 .page-dot.active { background: var(--blue); box-shadow: 0 0 6px var(--blue); }

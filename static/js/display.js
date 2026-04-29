@@ -1,4 +1,3 @@
-// ── Horloge ────────────────────────────────────────────────────────────
 let timeRefSeconds = 0;
 const MONTHS = ['JANVIER','FÉVRIER','MARS','AVRIL','MAI','JUIN','JUILLET','AOÛT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DÉCEMBRE'];
 const DAYS   = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
@@ -13,7 +12,6 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── Hashes ─────────────────────────────────────────────────────────────
 let lastTachesHash  = null;
 let lastAnnonce     = null;
 let lastDisplayHash = null;
@@ -49,7 +47,6 @@ function updateTaches(taches) {
     list.classList.toggle('mode-2col',    nb > 8);
     const titleSize = nb <= 3 ? '2.6rem' : nb <= 5 ? '2.0rem' : nb <= 8 ? '1.5rem' : '1.1rem';
     const teamSize  = nb <= 3 ? '1.4rem' : nb <= 5 ? '1.15rem' : nb <= 8 ? '0.95rem' : '0.8rem';
-    // Trier par priorité côté client aussi
     const ordre = { haute: 1, moyenne: 2, basse: 3 };
     const sorted = [...taches].sort((a, b) => (ordre[a.priorite] || 4) - (ordre[b.priorite] || 4));
     list.innerHTML = sorted.map(t => buildCard(t, titleSize, teamSize)).join('');
@@ -58,30 +55,19 @@ function updateTaches(taches) {
 function updateAnnonce(annonce) {
     if (annonce === lastAnnonce) return;
     lastAnnonce = annonce;
-    const el     = document.getElementById('annonce-text');
-    const scroll = el.parentElement;
-    el.classList.remove('scrolling');
-    scroll.classList.remove('scrolling');
-    el.style.animation = 'none';
-    el.textContent = annonce;
-    void el.offsetWidth;
-    requestAnimationFrame(() => {
-        const sep = '            ';
-        if (el.scrollWidth > scroll.clientWidth) {
-            el.textContent = annonce + sep + annonce + sep;
-            const offsetPx = el.scrollWidth / 2;
-            el.style.removeProperty('animation');
-            el.style.setProperty('--marquee-offset', `-${offsetPx}px`);
-            el.style.setProperty('--marquee-duration', `${offsetPx / 90}s`);
-            el.classList.add('scrolling');
-            scroll.classList.add('scrolling');
-        } else {
-            el.style.removeProperty('animation');
-        }
-    });
+    const t1     = document.getElementById('annonce-text');
+    const t2     = document.getElementById('annonce-text2');
+    const scroll = document.getElementById('annonce-scroll');
+    if (!t1 || !t2 || !scroll) return;
+    t1.textContent = annonce;
+    t2.textContent = annonce;
+    if (!annonce) return;
+    void t1.offsetWidth;
+    const w        = t1.offsetWidth + 80;
+    const duration = Math.max(6, w / 120);
+    scroll.style.setProperty('--marquee-duration', duration + 's');
 }
 
-// ── Paramètres display ────────────────────────────────────────────────
 const fill          = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
 const t0            = Date.now();
@@ -119,20 +105,18 @@ setInterval(() => {
     }
 }, 1000);
 
-// ── Notifications ─────────────────────────────────────────────────────
 const STORAGE_KEY_T = 'tasks_count';
 const STORAGE_KEY_M = 'moteurs_count';
-const notifAudio = new Audio('/static/sounds/notification.wav');
-notifAudio.preload = 'auto';
+const notifAudio    = new Audio('/static/sounds/notification.wav');
+notifAudio.preload  = 'auto';
 
-// Débloquer l'audio au premier touch (requis par les navigateurs)
 let audioUnlocked = false;
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
     notifAudio.play().then(() => { notifAudio.pause(); notifAudio.currentTime = 0; }).catch(() => {});
 }
-document.addEventListener('click',     unlockAudio, { once: false });
+document.addEventListener('click',      unlockAudio, { once: false });
 document.addEventListener('touchstart', unlockAudio, { once: false });
 
 function playBeep() {
@@ -141,32 +125,24 @@ function playBeep() {
 
 function checkNotifications(data) {
     if (localStorage.getItem('notif') === 'off') return;
-    const prevT  = parseInt(localStorage.getItem(STORAGE_KEY_T) ?? '-1');
-    const prevM  = parseInt(localStorage.getItem(STORAGE_KEY_M) ?? '-1');
-    const currT  = (data.taches  || []).length;
-    const currM  = (data.moteurs || []).length;
-    const newT   = prevT >= 0 && currT > prevT;
-    const newM   = prevM >= 0 && currM > prevM;
+    const prevT = parseInt(localStorage.getItem(STORAGE_KEY_T) ?? '-1');
+    const prevM = parseInt(localStorage.getItem(STORAGE_KEY_M) ?? '-1');
+    const currT = (data.taches  || []).length;
+    const currM = (data.moteurs || []).length;
+    const newT  = prevT >= 0 && currT > prevT;
+    const newM  = prevM >= 0 && currM > prevM;
     if (newT || newM) {
-        // Sur display1 on joue si nouvelle tâche, sur display2 si nouveau moteur
-        const onDisplay1 = window.location.pathname.includes('display1') || window.location.pathname === '/display';
-        if ((newT && onDisplay1) || (newM && !onDisplay1)) {
-            playBeep();
-        } else {
-            localStorage.setItem('notif_pending', '1');
-        }
+        if (newT) { playBeep(); } else { localStorage.setItem('notif_pending', '1'); }
     }
     localStorage.setItem(STORAGE_KEY_T, currT);
     localStorage.setItem(STORAGE_KEY_M, currM);
 }
 
-// Son en attente au chargement
 if (localStorage.getItem('notif_pending') === '1' && localStorage.getItem('notif') !== 'off') {
     localStorage.removeItem('notif_pending');
     window.addEventListener('load', () => setTimeout(playBeep, 800));
 }
 
-// ── Fetch ─────────────────────────────────────────────────────────────
 async function refreshData() {
     try {
         const res  = await fetch('/api/data');

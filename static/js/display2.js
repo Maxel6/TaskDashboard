@@ -1,4 +1,3 @@
-// ── Horloge ────────────────────────────────────────────────────────────
 let timeRefSeconds = 0;
 const MONTHS = ['JANVIER','FÉVRIER','MARS','AVRIL','MAI','JUIN','JUILLET','AOÛT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DÉCEMBRE'];
 const DAYS   = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
@@ -10,11 +9,9 @@ function updateClock() {
     if (clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     if (dateEl)  dateEl.textContent  = DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
-
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── Hashes ─────────────────────────────────────────────────────────────
 let lastTachesHash  = null;
 let lastAnnonce     = null;
 let lastDisplayHash = null;
@@ -58,30 +55,19 @@ function updateTaches(moteurs) {
 function updateAnnonce(annonce) {
     if (annonce === lastAnnonce) return;
     lastAnnonce = annonce;
-    const el     = document.getElementById('annonce-text');
-    const scroll = el.parentElement;
-    el.classList.remove('scrolling');
-    scroll.classList.remove('scrolling');
-    el.style.animation = 'none';
-    el.textContent = annonce;
-    void el.offsetWidth;
-    requestAnimationFrame(() => {
-        const sep = '            ';
-        if (el.scrollWidth > scroll.clientWidth) {
-            el.textContent = annonce + sep + annonce + sep;
-            const offsetPx = el.scrollWidth / 2;
-            el.style.removeProperty('animation');
-            el.style.setProperty('--marquee-offset', `-${offsetPx}px`);
-            el.style.setProperty('--marquee-duration', `${offsetPx / 90}s`);
-            el.classList.add('scrolling');
-            scroll.classList.add('scrolling');
-        } else {
-            el.style.removeProperty('animation');
-        }
-    });
+    const t1     = document.getElementById('annonce-text');
+    const t2     = document.getElementById('annonce-text2');
+    const scroll = document.getElementById('annonce-scroll');
+    if (!t1 || !t2 || !scroll) return;
+    t1.textContent = annonce;
+    t2.textContent = annonce;
+    if (!annonce) return;
+    void t1.offsetWidth;
+    const w        = t1.offsetWidth + 80;
+    const duration = Math.max(6, w / 120);
+    scroll.style.setProperty('--marquee-duration', duration + 's');
 }
 
-// ── Paramètres display ────────────────────────────────────────────────
 const fill          = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
 const t0            = Date.now();
@@ -119,20 +105,18 @@ setInterval(() => {
     }
 }, 1000);
 
-// ── Notifications ─────────────────────────────────────────────────────
 const STORAGE_KEY_T = 'tasks_count';
 const STORAGE_KEY_M = 'moteurs_count';
-const notifAudio = new Audio('/static/sounds/notification.wav');
-notifAudio.preload = 'auto';
+const notifAudio    = new Audio('/static/sounds/notification.wav');
+notifAudio.preload  = 'auto';
 
-// Débloquer l'audio au premier touch (requis par les navigateurs)
 let audioUnlocked = false;
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
     notifAudio.play().then(() => { notifAudio.pause(); notifAudio.currentTime = 0; }).catch(() => {});
 }
-document.addEventListener('click',     unlockAudio, { once: false });
+document.addEventListener('click',      unlockAudio, { once: false });
 document.addEventListener('touchstart', unlockAudio, { once: false });
 
 function playBeep() {
@@ -141,19 +125,14 @@ function playBeep() {
 
 function checkNotifications(data) {
     if (localStorage.getItem('notif') === 'off') return;
-    const prevT  = parseInt(localStorage.getItem(STORAGE_KEY_T) ?? '-1');
-    const prevM  = parseInt(localStorage.getItem(STORAGE_KEY_M) ?? '-1');
-    const currT  = (data.taches  || []).length;
-    const currM  = (data.moteurs || []).length;
-    const newT   = prevT >= 0 && currT > prevT;
-    const newM   = prevM >= 0 && currM > prevM;
+    const prevT = parseInt(localStorage.getItem(STORAGE_KEY_T) ?? '-1');
+    const prevM = parseInt(localStorage.getItem(STORAGE_KEY_M) ?? '-1');
+    const currT = (data.taches  || []).length;
+    const currM = (data.moteurs || []).length;
+    const newT  = prevT >= 0 && currT > prevT;
+    const newM  = prevM >= 0 && currM > prevM;
     if (newT || newM) {
-        const onDisplay2 = window.location.pathname.includes('display2');
-        if ((newM && onDisplay2) || (newT && !onDisplay2)) {
-            playBeep();
-        } else {
-            localStorage.setItem('notif_pending', '1');
-        }
+        if (newM) { playBeep(); } else { localStorage.setItem('notif_pending', '1'); }
     }
     localStorage.setItem(STORAGE_KEY_T, currT);
     localStorage.setItem(STORAGE_KEY_M, currM);
@@ -164,21 +143,16 @@ if (localStorage.getItem('notif_pending') === '1' && localStorage.getItem('notif
     window.addEventListener('load', () => setTimeout(playBeep, 800));
 }
 
-// ── Fetch ─────────────────────────────────────────────────────────────
 async function refreshData() {
     try {
         const res  = await fetch('/api/data');
-        if (!res.ok) throw new Error('Erreur réseau');
         const data = await res.json();
         if (data.time_ref !== undefined) timeRefSeconds = data.time_ref;
         applyDisplaySettings(data.display);
         updateAnnonce(data.annonce);
         checkNotifications(data);
         updateTaches(data.moteurs);
-    } catch(e) { 
-        console.error('Erreur de rafraîchissement des données:', e.message);
-        // Le dashboard continue de fonctionner avec les données en cache
-    }
+    } catch(e) { console.error(e); }
 }
 
 setInterval(refreshData, 10000);
