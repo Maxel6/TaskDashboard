@@ -79,7 +79,8 @@
                     <input type="text" name="texte" value="{{ tache.texte }}">
                     <span class="equipe-label">Assigné à</span>
                     <div id="equipe-edit-{{ tache.id }}">
-                        {% for personne in tache.equipe.split(', ') %}
+                        {% set equipe_list = tache.equipe.split(', ') if tache.equipe and tache.equipe != "—" else [] %}
+                        {% for personne in equipe_list %}
                         <div class="equipe-row">
                             <select name="equipe">
                                 <option value="" disabled>Choisir…</option>

@@ -22,7 +22,21 @@ def load_data():
         save_data(initial_data)
         return initial_data
 
-    data = json.load(open(DB_FILE, 'r', encoding='utf-8'))
+    try:
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        # Reset to initial data if file is corrupted
+        initial_data = {
+            "annonce": "Bienvenue !",
+            "taches": [],
+            "moteurs": [],
+            "collaborateurs": ["Bastien Z", "Florian C", "Mor F", "Pascal O", "Patrick L", "Sebastien B", "Silvain R"],
+            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30},
+            "time_ref": 0
+        }
+        save_data(initial_data)
+        return initial_data
 
     # Migrations
     changed = False
@@ -53,10 +67,12 @@ def load_data():
         changed = True
     for t in data.get('taches', []):
         if 'id' not in t:
-            t['id'] = str(uuid.uuid4())[:8]; changed = True
+            t['id'] = str(uuid.uuid4())[:8]
+            changed = True
     for m in data.get('moteurs', []):
         if 'id' not in m:
-            m['id'] = str(uuid.uuid4())[:8]; changed = True
+            m['id'] = str(uuid.uuid4())[:8]
+            changed = True
     if changed:
         save_data(data)
     return data

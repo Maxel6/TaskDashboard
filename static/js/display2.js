@@ -81,7 +81,7 @@ function applyDisplaySettings(display) {
     if (displayKey === lastDisplayHash) return;
     lastDisplayHash = displayKey;
     const newPages = display.pages || [1, 2];
-    const newDuree = (display.duree2 || display.duree || 30) * 1000;
+    const newDuree = (display.duree2 || 30) * 1000;
     if (!newPages.includes(2)) {
         window.location.href = newPages.includes(1) ? '/display1' : '/dashboard';
         return;
@@ -99,11 +99,15 @@ function applyDisplaySettings(display) {
     }
 }
 
-setInterval(() => {
-    if (pages_active.length > 1) {
-        fill.style.width = Math.min(((Date.now() - t0) / SWITCH_MS) * 100, 100) + '%';
+function updateProgressBar() {
+    if (pages_active.length > 1 && fill) {
+        const elapsed = Date.now() - t0;
+        const progress = Math.min((elapsed / SWITCH_MS) * 100, 100);
+        fill.style.width = progress + '%';
     }
-}, 1000);
+    requestAnimationFrame(updateProgressBar);
+}
+requestAnimationFrame(updateProgressBar);
 
 const STORAGE_KEY_T = 'tasks_count';
 const STORAGE_KEY_M = 'moteurs_count';
@@ -132,7 +136,7 @@ function checkNotifications(data) {
     const newT  = prevT >= 0 && currT > prevT;
     const newM  = prevM >= 0 && currM > prevM;
     if (newT || newM) {
-        if (newM) { playBeep(); } else { localStorage.setItem('notif_pending', '1'); }
+        playBeep();
     }
     localStorage.setItem(STORAGE_KEY_T, currT);
     localStorage.setItem(STORAGE_KEY_M, currM);
@@ -155,5 +159,5 @@ async function refreshData() {
     } catch(e) { console.error(e); }
 }
 
-setInterval(refreshData, 10000);
+setInterval(refreshData, 5000);
 refreshData();
