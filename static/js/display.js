@@ -1,23 +1,23 @@
 let timeRefSeconds = 0;
-const MONTHS = ['JANVIER','FÉVRIER','MARS','AVRIL','MAI','JUIN','JUILLET','AOÛT','SEPTEMBRE','OCTOBRE','NOVEMBRE','DÉCEMBRE'];
-const DAYS   = ['DIM','LUN','MAR','MER','JEU','VEN','SAM'];
+const MONTHS = ['JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'];
+const DAYS = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 
 function updateClock() {
     const now = new Date(Date.now() + timeRefSeconds * 1000);
     const clockEl = document.getElementById('clock');
-    const dateEl  = document.getElementById('date');
-    if (clockEl) clockEl.textContent = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    if (dateEl)  dateEl.textContent  = DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
+    const dateEl = document.getElementById('date');
+    if (clockEl) clockEl.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    if (dateEl) dateEl.textContent = DAYS[now.getDay()] + ' ' + now.getDate() + ' ' + MONTHS[now.getMonth()];
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-let lastTachesHash  = null;
-let lastAnnonce     = null;
+let lastTachesHash = null;
+let lastAnnonce = null;
 let lastDisplayHash = null;
 
 const pColor = { haute: '#ef4444', moyenne: '#f59e0b', basse: '#10b981' };
-const pLabel = { haute: 'Haute',   moyenne: 'Moyenne', basse: 'Basse'  };
+const pLabel = { haute: 'Haute', moyenne: 'Moyenne', basse: 'Basse' };
 
 function buildCard(t, titleSize, teamSize) {
     const color = pColor[t.priorite] || '#10b981';
@@ -42,11 +42,11 @@ function updateTaches(taches) {
     if (hash === lastTachesHash) return;
     lastTachesHash = hash;
     const list = document.getElementById('task-list');
-    const nb   = taches.length;
+    const nb = taches.length;
     list.classList.toggle('mode-compact', nb > 4 && nb <= 8);
-    list.classList.toggle('mode-2col',    nb > 8);
+    list.classList.toggle('mode-2col', nb > 8);
     const titleSize = nb <= 3 ? '2.6rem' : nb <= 5 ? '2.0rem' : nb <= 8 ? '1.5rem' : '1.1rem';
-    const teamSize  = nb <= 3 ? '1.4rem' : nb <= 5 ? '1.15rem' : nb <= 8 ? '0.95rem' : '0.8rem';
+    const teamSize = nb <= 3 ? '1.4rem' : nb <= 5 ? '1.15rem' : nb <= 8 ? '0.95rem' : '0.8rem';
     const ordre = { haute: 1, moyenne: 2, basse: 3 };
     const sorted = [...taches].sort((a, b) => (ordre[a.priorite] || 4) - (ordre[b.priorite] || 4));
     list.innerHTML = sorted.map(t => buildCard(t, titleSize, teamSize)).join('');
@@ -55,25 +55,25 @@ function updateTaches(taches) {
 function updateAnnonce(annonce) {
     if (annonce === lastAnnonce) return;
     lastAnnonce = annonce;
-    const t1     = document.getElementById('annonce-text');
-    const t2     = document.getElementById('annonce-text2');
+    const t1 = document.getElementById('annonce-text');
+    const t2 = document.getElementById('annonce-text2');
     const scroll = document.getElementById('annonce-scroll');
     if (!t1 || !t2 || !scroll) return;
     t1.textContent = annonce;
     t2.textContent = annonce;
     if (!annonce) return;
     void t1.offsetWidth;
-    const w        = t1.offsetWidth + 80;
+    const w = t1.offsetWidth + 80;
     const duration = Math.max(6, w / 50);
     scroll.style.setProperty('--marquee-duration', duration + 's');
 }
 
-const fill          = document.getElementById('progress-fill');
+const fill = document.getElementById('progress-fill');
 const progressTrack = document.querySelector('.progress-track');
-const t0            = Date.now();
-let   SWITCH_MS     = 30 * 1000;
-let   pages_active  = [1, 2];
-let   switchTimer   = null;
+const t0 = Date.now();
+let SWITCH_MS = 30 * 1000;
+let pages_active = [1, 2];
+let switchTimer = null;
 
 function applyDisplaySettings(display) {
     if (!display) return;
@@ -83,7 +83,8 @@ function applyDisplaySettings(display) {
     const newPages = display.pages || [1, 2];
     const newDuree = (display.duree1 || 30) * 1000;
     if (!newPages.includes(1)) {
-        window.location.href = newPages.includes(2) ? '/display2' : '/dashboard';
+        const target = newPages.includes(2) ? '/display2' : newPages.includes(3) ? '/display3' : '/dashboard';
+        window.location.href = target;
         return;
     }
     const multiPage = newPages.length > 1;
@@ -91,11 +92,16 @@ function applyDisplaySettings(display) {
     document.querySelectorAll('.page-dot').forEach((dot, i) => {
         dot.style.display = newPages.includes(i + 1) ? 'block' : 'none';
     });
-    SWITCH_MS    = newDuree;
+    SWITCH_MS = newDuree;
     pages_active = newPages;
     if (switchTimer) clearTimeout(switchTimer);
     if (multiPage) {
-        switchTimer = setTimeout(() => { window.location.href = '/display2'; }, SWITCH_MS);
+        // Determine next page in rotation
+        const currentIndex = newPages.indexOf(1);
+        const nextIndex = (currentIndex + 1) % newPages.length;
+        const nextPage = newPages[nextIndex];
+        const target = nextPage === 1 ? '/display1' : nextPage === 2 ? '/display2' : '/display3';
+        switchTimer = setTimeout(() => { window.location.href = target; }, SWITCH_MS);
     }
 }
 
@@ -111,30 +117,30 @@ requestAnimationFrame(updateProgressBar);
 
 const STORAGE_KEY_T = 'tasks_count';
 const STORAGE_KEY_M = 'moteurs_count';
-const notifAudio    = new Audio('/static/sounds/notification.wav');
-notifAudio.preload  = 'auto';
+const notifAudio = new Audio('/static/sounds/notification.wav');
+notifAudio.preload = 'auto';
 
 let audioUnlocked = false;
 function unlockAudio() {
     if (audioUnlocked) return;
     audioUnlocked = true;
-    notifAudio.play().then(() => { notifAudio.pause(); notifAudio.currentTime = 0; }).catch(() => {});
+    notifAudio.play().then(() => { notifAudio.pause(); notifAudio.currentTime = 0; }).catch(() => { });
 }
-document.addEventListener('click',      unlockAudio, { once: false });
+document.addEventListener('click', unlockAudio, { once: false });
 document.addEventListener('touchstart', unlockAudio, { once: false });
 
 function playBeep() {
-    try { notifAudio.currentTime = 0; notifAudio.play(); } catch(e) {}
+    try { notifAudio.currentTime = 0; notifAudio.play(); } catch (e) { }
 }
 
 function checkNotifications(data) {
     if (localStorage.getItem('notif') === 'off') return;
     const prevT = parseInt(localStorage.getItem(STORAGE_KEY_T) ?? '-1');
     const prevM = parseInt(localStorage.getItem(STORAGE_KEY_M) ?? '-1');
-    const currT = (data.taches  || []).length;
+    const currT = (data.taches || []).length;
     const currM = (data.moteurs || []).length;
-    const newT  = prevT >= 0 && currT > prevT;
-    const newM  = prevM >= 0 && currM > prevM;
+    const newT = prevT >= 0 && currT > prevT;
+    const newM = prevM >= 0 && currM > prevM;
     if (newT || newM) {
         playBeep();
     }
@@ -149,14 +155,14 @@ if (localStorage.getItem('notif_pending') === '1' && localStorage.getItem('notif
 
 async function refreshData() {
     try {
-        const res  = await fetch('/api/data');
+        const res = await fetch('/api/data');
         const data = await res.json();
         if (data.time_ref !== undefined) timeRefSeconds = data.time_ref;
         applyDisplaySettings(data.display);
         updateAnnonce(data.annonce);
         checkNotifications(data);
         updateTaches(data.taches);
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
 }
 
 setInterval(refreshData, 5000);

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
 </head>
+
 <body>
 
     <div class="topbar">
@@ -16,159 +18,215 @@
     <div class="tab-bar">
         <button class="tab-btn active" onclick="switchTab(1)" id="tab1">Page 1 — Tâches</button>
         <button class="tab-btn" onclick="switchTab(2)" id="tab2">Page 2 — Moteurs</button>
+        <button class="tab-btn" onclick="switchTab(3)" id="tab3">Page 3 — PDFs</button>
     </div>
 
     <div class="page">
 
         <div class="tab-panel" id="panel1">
 
-        <div class="card">
-            <div class="card-title">📢 Annonce du jour</div>
-            <form action="/update_annonce" method="POST" novalidate>
-                <input type="text" name="annonce" value="{{ data.annonce }}" placeholder="Message affiché sur le dashboard…">
-                <button type="submit" class="btn btn-neutral">Mettre à jour</button>
-            </form>
-        </div>
-
-        <div class="card">
-            <div class="card-title">＋ Nouvelle tâche</div>
-            <form action="/add_task" method="POST">
-                <input type="text" name="tache" placeholder="Description de la tâche…" required>
-
-                <span class="equipe-label">Assigner à</span>
-                <div id="equipe-add">
-                    <div class="equipe-row">
-                        <select name="equipe">
-                            <option value="" disabled selected>Choisir…</option>
-                            {% for c in data.collaborateurs %}
-                            <option value="{{ c }}">{{ c }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-title">📢 Annonce du jour</div>
+                    <form action="/update_annonce" method="POST" novalidate>
+                        <input type="text" name="annonce" value="{{ data.annonce }}"
+                            placeholder="Message affiché sur le dashboard…">
+                        <button type="submit" class="btn btn-neutral">Mettre à jour</button>
+                    </form>
                 </div>
-                <button type="button" class="btn-add-person" onclick="addRow('equipe-add')">+ Ajouter une personne</button>
 
-                <select name="priorite">
-                    <option value="basse">🟢 Priorité Basse</option>
-                    <option value="moyenne">🟡 Priorité Moyenne</option>
-                    <option value="haute">🔴 Priorité Haute</option>
-                </select>
-                <button type="submit" class="btn btn-primary">Ajouter au dashboard</button>
-            </form>
-        </div>
-
-        {% if data.taches %}
-        <div class="section-title">Tâches en cours</div>
-        {% for tache in data.taches %}
-        <div class="task-card prio-{{ tache.priorite }}">
-            <div class="task-header" onclick="toggleTask('{{ tache.id }}')" style="cursor:pointer">
-                <div class="task-summary-row">
-                    <span class="task-name">{{ tache.texte }}</span>
-                    <span class="task-team-badge prio-{{ tache.priorite }}">{{ tache.equipe }}</span>
-                </div>
-                <div class="task-actions">
-                    <a href="/delete_task/{{ tache.id }}" class="btn-delete-task"
-                       onclick="event.stopPropagation(); return confirm('Supprimer cette tâche ?')">✕</a>
-                    <button type="button" class="btn-accordion">
-                        <span class="accordion-arrow" id="arrow-{{ tache.id }}">›</span>
-                    </button>
-                </div>
-            </div>
-            <div class="task-body" id="body-{{ tache.id }}">
-                <form action="/edit_task/{{ tache.id }}" method="POST">
-                    <input type="text" name="texte" value="{{ tache.texte }}">
-                    <span class="equipe-label">Assigné à</span>
-                    <div id="equipe-edit-{{ tache.id }}">
-                        {% set equipe_list = tache.equipe.split(', ') if tache.equipe and tache.equipe != "—" else [] %}
-                        {% for personne in equipe_list %}
-                        <div class="equipe-row">
-                            <select name="equipe">
-                                <option value="" disabled>Choisir…</option>
-                                {% for c in data.collaborateurs %}
-                                <option value="{{ c }}" {% if c == personne %}selected{% endif %}>{{ c }}</option>
-                                {% endfor %}
-                            </select>
-                            {% if loop.index > 1 %}
-                            <button type="button" class="btn-remove-person" onclick="removeRow(this)">−</button>
-                            {% endif %}
+                <div class="card">
+                    <div class="card-title">＋ Nouvelle tâche</div>
+                    <form action="/add_task" method="POST">
+                        <input type="text" name="tache" placeholder="Description de la tâche…" required>
+                        <span class="equipe-label">Assigner à</span>
+                        <div id="equipe-add">
+                            <div class="equipe-row">
+                                <select name="equipe">
+                                    <option value="" disabled selected>Choisir…</option>
+                                    {% for c in data.collaborateurs %}
+                                    <option value="{{ c }}">{{ c }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                    <button type="button" class="btn-add-person" onclick="addRow('equipe-edit-{{ tache.id }}')">+ Ajouter une personne</button>
-                    <select name="priorite">
-                        <option value="basse"   {% if tache.priorite=='basse'   %}selected{% endif %}>🟢 Basse</option>
-                        <option value="moyenne" {% if tache.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne</option>
-                        <option value="haute"   {% if tache.priorite=='haute'   %}selected{% endif %}>🔴 Haute</option>
-                    </select>
-                    <button type="submit" class="btn btn-save">Enregistrer</button>
-                </form>
+                        <button type="button" class="btn-add-person" onclick="addRow('equipe-add')">+ Ajouter une
+                            personne</button>
+                        <select name="priorite">
+                            <option value="basse">🟢 Priorité Basse</option>
+                            <option value="moyenne">🟡 Priorité Moyenne</option>
+                            <option value="haute">🔴 Priorité Haute</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Ajouter au dashboard</button>
+                    </form>
+                </div>
             </div>
-        </div>
-        {% endfor %}
-        {% endif %}
 
-        <div class="danger-zone">
-            <a href="/delete_all" onclick="return confirm('Supprimer TOUTES les tâches ?')" class="btn-danger">
-                🗑️ Tout supprimer
-            </a>
-        </div>
+            {% if data.taches %}
+            <div class="section-title">Tâches en cours</div>
+            {% for tache in data.taches %}
+            <div class="task-card prio-{{ tache.priorite }}">
+                <div class="task-header" onclick="toggleTask('{{ tache.id }}')">
+                    <div class="task-summary-row">
+                        <span class="task-name">{{ tache.texte }}</span>
+                        <span class="task-team-badge prio-{{ tache.priorite }}">{{ tache.equipe }}</span>
+                    </div>
+                    <div class="task-actions">
+                        <a href="/delete_task/{{ tache.id }}" class="btn-delete-task"
+                            onclick="event.stopPropagation(); return confirm('Supprimer cette tâche ?')">✕</a>
+                        <button type="button" class="btn-accordion">
+                            <span class="accordion-arrow" id="arrow-{{ tache.id }}">›</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="task-body" id="body-{{ tache.id }}">
+                    <form action="/edit_task/{{ tache.id }}" method="POST">
+                        <input type="text" name="texte" value="{{ tache.texte }}">
+                        <span class="equipe-label">Assigné à</span>
+                        <div id="equipe-edit-{{ tache.id }}">
+                            {% set equipe_list = tache.equipe.split(', ') if tache.equipe and tache.equipe != "—" else
+                            [] %}
+                            {% for personne in equipe_list %}
+                            <div class="equipe-row">
+                                <select name="equipe">
+                                    <option value="" disabled>Choisir…</option>
+                                    {% for c in data.collaborateurs %}
+                                    <option value="{{ c }}" {% if c==personne %}selected{% endif %}>{{ c }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if loop.index > 1 %}
+                                <button type="button" class="btn-remove-person" onclick="removeRow(this)">−</button>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn-add-person" onclick="addRow('equipe-edit-{{ tache.id }}')">+
+                            Ajouter une personne</button>
+                        <select name="priorite">
+                            <option value="basse" {% if tache.priorite=='basse' %}selected{% endif %}>🟢 Basse</option>
+                            <option value="moyenne" {% if tache.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne
+                            </option>
+                            <option value="haute" {% if tache.priorite=='haute' %}selected{% endif %}>🔴 Haute</option>
+                        </select>
+                        <button type="submit" class="btn btn-save">Enregistrer</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <div class="danger-zone">
+                <a href="/delete_all" onclick="return confirm('Supprimer TOUTES les tâches ?')" class="btn-danger">
+                    🗑️ Tout supprimer
+                </a>
+            </div>
 
         </div>
 
         <div class="tab-panel hidden" id="panel2">
 
-        <div class="card">
-            <div class="card-title">＋ Nouveau moteur</div>
-            <form action="/add_moteur" method="POST">
-                <input type="text" name="texte" placeholder="Description du moteur…" required>
-                <input type="text" name="emplacement" placeholder="Emplacement (ex: Zone A, Ligne 3…)">
-                <select name="priorite">
-                    <option value="basse">🟢 Priorité Basse</option>
-                    <option value="moyenne">🟡 Priorité Moyenne</option>
-                    <option value="haute">🔴 Priorité Haute</option>
-                </select>
-                <button type="submit" class="btn btn-primary">Ajouter au dashboard</button>
-            </form>
-        </div>
-
-        {% if data.moteurs %}
-        <div class="section-title">Moteurs en cours</div>
-        {% for moteur in data.moteurs %}
-        <div class="task-card prio-{{ moteur.priorite }}">
-            <div class="task-header" onclick="toggleTask('m{{ moteur.id }}')" style="cursor:pointer">
-                <div class="task-summary-row">
-                    <span class="task-name">{{ moteur.texte }}</span>
-                    <span class="task-team-badge prio-{{ moteur.priorite }}">{{ moteur.emplacement }}</span>
-                </div>
-                <div class="task-actions">
-                    <a href="/delete_moteur/{{ moteur.id }}" class="btn-delete-task"
-                       onclick="event.stopPropagation(); return confirm('Supprimer ce moteur ?')">✕</a>
-                    <button type="button" class="btn-accordion">
-                        <span class="accordion-arrow" id="arrow-m{{ moteur.id }}">›</span>
-                    </button>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-title">＋ Nouveau moteur</div>
+                    <form action="/add_moteur" method="POST">
+                        <input type="text" name="texte" placeholder="Description du moteur…" required>
+                        <input type="text" name="emplacement" placeholder="Emplacement (ex: Zone A, Ligne 3…)">
+                        <select name="priorite">
+                            <option value="basse">🟢 Priorité Basse</option>
+                            <option value="moyenne">🟡 Priorité Moyenne</option>
+                            <option value="haute">🔴 Priorité Haute</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary">Ajouter au dashboard</button>
+                    </form>
                 </div>
             </div>
-            <div class="task-body" id="body-m{{ moteur.id }}">
-                <form action="/edit_moteur/{{ moteur.id }}" method="POST">
-                    <input type="text" name="texte" value="{{ moteur.texte }}">
-                    <input type="text" name="emplacement" value="{{ moteur.emplacement }}" placeholder="Emplacement…">
-                    <select name="priorite">
-                        <option value="basse"   {% if moteur.priorite=='basse'   %}selected{% endif %}>🟢 Basse</option>
-                        <option value="moyenne" {% if moteur.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne</option>
-                        <option value="haute"   {% if moteur.priorite=='haute'   %}selected{% endif %}>🔴 Haute</option>
-                    </select>
-                    <button type="submit" class="btn btn-save">Enregistrer</button>
-                </form>
-            </div>
-        </div>
-        {% endfor %}
-        {% endif %}
 
-        <div class="danger-zone">
-            <a href="/delete_all_moteurs" onclick="return confirm('Supprimer TOUS les moteurs ?')" class="btn-danger">
-                🗑️ Tout supprimer
-            </a>
+            {% if data.moteurs %}
+            <div class="section-title">Moteurs en cours</div>
+            {% for moteur in data.moteurs %}
+            <div class="task-card prio-{{ moteur.priorite }}">
+                <div class="task-header" onclick="toggleTask('m{{ moteur.id }}')">
+                    <div class="task-summary-row">
+                        <span class="task-name">{{ moteur.texte }}</span>
+                        <span class="task-team-badge prio-{{ moteur.priorite }}">{{ moteur.emplacement }}</span>
+                    </div>
+                    <div class="task-actions">
+                        <a href="/delete_moteur/{{ moteur.id }}" class="btn-delete-task"
+                            onclick="event.stopPropagation(); return confirm('Supprimer ce moteur ?')">✕</a>
+                        <button type="button" class="btn-accordion">
+                            <span class="accordion-arrow" id="arrow-m{{ moteur.id }}">›</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="task-body" id="body-m{{ moteur.id }}">
+                    <form action="/edit_moteur/{{ moteur.id }}" method="POST">
+                        <input type="text" name="texte" value="{{ moteur.texte }}">
+                        <input type="text" name="emplacement" value="{{ moteur.emplacement }}"
+                            placeholder="Emplacement…">
+                        <select name="priorite">
+                            <option value="basse" {% if moteur.priorite=='basse' %}selected{% endif %}>🟢 Basse</option>
+                            <option value="moyenne" {% if moteur.priorite=='moyenne' %}selected{% endif %}>🟡 Moyenne
+                            </option>
+                            <option value="haute" {% if moteur.priorite=='haute' %}selected{% endif %}>🔴 Haute</option>
+                        </select>
+                        <button type="submit" class="btn btn-save">Enregistrer</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <div class="danger-zone">
+                <a href="/delete_all_moteurs" onclick="return confirm('Supprimer TOUS les moteurs ?')"
+                    class="btn-danger">
+                    🗑️ Tout supprimer
+                </a>
+            </div>
+
         </div>
+
+        <div class="tab-panel hidden" id="panel3">
+
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-title">📄 Upload PDF</div>
+                    <form action="/upload_pdf" method="POST" enctype="multipart/form-data">
+                        <input type="file" name="pdf" accept=".pdf" required>
+                        <button type="submit" class="btn btn-primary">Uploader le PDF</button>
+                    </form>
+                </div>
+
+                {% if data.pdfs %}
+                <div class="card">
+                    <div class="card-title">✅ Sélectionner les PDFs à afficher</div>
+                    <form action="/update_selected_pdfs" method="POST" id="pdf-selection-form">
+                        <div class="pdf-list">
+                            {% for pdf in data.pdfs %}
+                            <div class="pdf-item">
+                                <label class="pdf-checkbox-label">
+                                    <input type="checkbox" name="selected_pdfs" value="{{ pdf.id }}" {% if pdf.id in
+                                        data.selected_pdfs %}checked{% endif %}>
+                                    <span class="pdf-name">{{ pdf.original_name }}</span>
+                                </label>
+                                <a href="/delete_pdf/{{ pdf.id }}" class="btn-delete-pdf"
+                                    onclick="return confirm('Supprimer ce PDF ?')">✕</a>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="btn btn-save">Enregistrer la sélection</button>
+                    </form>
+                </div>
+                {% endif %}
+
+            </div>
+
+            {% if data.pdfs %}
+            <div class="danger-zone">
+                <a href="/delete_all_pdfs" onclick="return confirm('Supprimer TOUS les PDFs ?')" class="btn-danger">
+                    🗑️ Tout supprimer
+                </a>
+            </div>
+            {% endif %}
 
         </div>
     </div>
@@ -178,4 +236,5 @@
     </script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
+
 </html>

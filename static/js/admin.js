@@ -1,4 +1,3 @@
-// ── Collaborateurs ─────────────────────────────────────────────────────
 function buildOptions() {
     return '<option value="" disabled>Choisir…</option>' +
         COLLABORATEURS.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -16,7 +15,6 @@ function removeRow(btn) {
     btn.closest('.equipe-row').remove();
 }
 
-// ── Slider durée ───────────────────────────────────────────────────────
 function updateSliderLabel(val, labelId) {
     const label = document.getElementById(labelId || 'slider-label');
     if (!label) return;
@@ -28,43 +26,45 @@ function updateSliderLabel(val, labelId) {
         label.textContent = val + 's';
     }
 }
-// Init sliders au chargement
 const slider1 = document.getElementById('slider-duree1');
 if (slider1) updateSliderLabel(slider1.value, 'slider-label1');
 const slider2 = document.getElementById('slider-duree2');
 if (slider2) updateSliderLabel(slider2.value, 'slider-label2');
+const slider3 = document.getElementById('slider-duree3');
+if (slider3) updateSliderLabel(slider3.value, 'slider-label3');
 
-// ── Protection : au moins une page toujours cochée ────────────────────
-function checkAtLeastOne(changed, otherId) {
-    const other = document.getElementById(otherId);
-    if (!changed.checked && other && !other.checked) {
+function checkAtLeastOne(changed, otherId1, otherId2) {
+    const other1 = document.getElementById(otherId1);
+    const other2 = document.getElementById(otherId2);
+    const anyChecked = (other1 && other1.checked) || (other2 && other2.checked);
+    if (!changed.checked && !anyChecked) {
         changed.checked = true;
     }
 }
 
-// ── Onglets Page 1 / Page 2 ────────────────────────────────────────────
 function switchTab(n) {
     document.getElementById('panel1').classList.toggle('hidden', n !== 1);
     document.getElementById('panel2').classList.toggle('hidden', n !== 2);
+    document.getElementById('panel3').classList.toggle('hidden', n !== 3);
     document.getElementById('tab1').classList.toggle('active', n === 1);
     document.getElementById('tab2').classList.toggle('active', n === 2);
+    document.getElementById('tab3').classList.toggle('active', n === 3);
 }
 if (window.location.hash === '#page2') switchTab(2);
+if (window.location.hash === '#page3') switchTab(3);
 
-// ── Accordéon tâches + moteurs ─────────────────────────────────────────
 function toggleTask(id) {
-    const body  = document.getElementById('body-'  + id);
+    const body = document.getElementById('body-' + id);
     const arrow = document.getElementById('arrow-' + id);
     if (!body) return;
     const isOpen = body.classList.contains('open');
-    body.classList.toggle('open',  !isOpen);
+    body.classList.toggle('open', !isOpen);
     arrow.classList.toggle('open', !isOpen);
 }
 
-// ── Pré-remplir datetime ───────────────────────────────────────────────
 const dtInput = document.getElementById('datetime-input');
 if (dtInput) {
     const now = new Date();
     const pad = n => String(n).padStart(2, '0');
-    dtInput.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    dtInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }

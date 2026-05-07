@@ -83,7 +83,8 @@ function applyDisplaySettings(display) {
     const newPages = display.pages || [1, 2];
     const newDuree = (display.duree2 || 30) * 1000;
     if (!newPages.includes(2)) {
-        window.location.href = newPages.includes(1) ? '/display1' : '/dashboard';
+        const target = newPages.includes(1) ? '/display1' : newPages.includes(3) ? '/display3' : '/dashboard';
+        window.location.href = target;
         return;
     }
     const multiPage = newPages.length > 1;
@@ -95,7 +96,12 @@ function applyDisplaySettings(display) {
     pages_active = newPages;
     if (switchTimer) clearTimeout(switchTimer);
     if (multiPage) {
-        switchTimer = setTimeout(() => { window.location.href = '/display1'; }, SWITCH_MS);
+        // Determine next page in rotation
+        const currentIndex = newPages.indexOf(2);
+        const nextIndex = (currentIndex + 1) % newPages.length;
+        const nextPage = newPages[nextIndex];
+        const target = nextPage === 1 ? '/display1' : nextPage === 2 ? '/display2' : '/display3';
+        switchTimer = setTimeout(() => { window.location.href = target; }, SWITCH_MS);
     }
 }
 

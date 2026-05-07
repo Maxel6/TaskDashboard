@@ -1,0 +1,322 @@
+@font-face {
+    font-family: 'Bebas Neue';
+    font-weight: 400;
+    src: url('/static/fonts/BebasNeue-Regular.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'DM Sans';
+    font-weight: 100 900;
+    src: url('/static/fonts/DMSans-VariableFont_opsz,wght.ttf') format('truetype');
+}
+
+* {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+    display: none !important;
+}
+
+html, body {
+    overflow: hidden !important;
+    margin: 0;
+    padding: 0;
+    font-family: 'DM Sans', sans-serif;
+}
+
+.pdf-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0b1220 0%, #0f172a 50%, #1e293b 100%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+.pdf-container::before {
+    content: '';
+    position: fixed;
+    inset: -20%;
+    background:
+        radial-gradient(ellipse 80% 50% at 20% 40%, rgba(37, 99, 235, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 70% at 80% 60%, rgba(15, 118, 110, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 60% at 50% 100%, rgba(124, 58, 237, 0.1) 0%, transparent 50%);
+    z-index: 0;
+    pointer-events: none;
+    animation: gradientShift 20s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { transform: translateX(-5%) rotate(0deg); }
+    50% { transform: translateX(5%) rotate(2deg); }
+}
+
+#pdf-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.96);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#pdf-wrapper.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.pdf-scaler {
+    transform-origin: center center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.6),
+        0 10px 30px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+}
+
+.pdf-scaler:hover {
+    transform: scale(1.005);
+    box-shadow:
+        0 30px 90px rgba(0, 0, 0, 0.5),
+        0 15px 40px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+#pdf-canvas {
+    display: block;
+    background: white;
+    transition: opacity 0.3s ease;
+}
+
+#pdf-canvas.fade-out {
+    opacity: 0;
+}
+
+.no-pdf {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.no-pdf-icon {
+    width: 80px;
+    height: 80px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.no-pdf-icon::before {
+    content: 'PDF';
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.no-pdf-icon::after {
+    content: '';
+    position: absolute;
+    width: 40px;
+    height: 2px;
+    background: rgba(239, 68, 68, 0.6);
+    transform: rotate(-45deg);
+}
+
+.no-pdf-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 6px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.no-pdf-subtitle {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 400;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.loader {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.loader.visible {
+    opacity: 1;
+}
+
+.loader-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loader-text {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.pdf-info {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 30px;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.pdf-info.visible {
+    opacity: 1;
+}
+
+.pdf-name {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-page-indicator {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
+
+.pdf-progress {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #38bdf8, rgba(56, 189, 248, 0.3));
+    transition: width 0.3s ease;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+/* Header et Footer visibles sur display3 */
+.header {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 20px 32px;
+    background: linear-gradient(to bottom, rgba(11, 18, 32, 0.9) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.header > * {
+    pointer-events: auto;
+}
+
+.footer-area {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 0 32px 20px;
+    background: linear-gradient(to top, rgba(11, 18, 32, 0.95) 0%, transparent 100%);
+}
+
+.page-dots {
+    display: flex !important;
+    bottom: 20px;
+}
+
+/* Ajustement pdf-info pour ne pas chevaucher le footer */
+.pdf-info {
+    bottom: 110px;
+}
+
+.pdf-progress {
+    bottom: 90px;
+}
+
+.page-transition {
+    animation: pageSlide 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes pageSlide {
+    0% {
+        opacity: 0;
+        transform: translateX(30px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}

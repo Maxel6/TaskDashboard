@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - PDFs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/display3.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+
+<body>
+
+    <div class="header">
+        <div class="header-date" id="date"></div>
+        <div class="header-clock" id="clock"></div>
+    </div>
+
+    <div class="pdf-container" id="pdf-container">
+        <div class="loader" id="loader">
+            <div class="loader-spinner"></div>
+            <div class="loader-text">Chargement</div>
+        </div>
+
+        <div id="pdf-wrapper" class="hidden">
+            <div class="pdf-scaler" id="pdf-scaler">
+                <canvas id="pdf-canvas"></canvas>
+            </div>
+        </div>
+
+        <div id="no-pdf" class="no-pdf hidden">
+            <div class="no-pdf-icon"></div>
+            <div class="no-pdf-title">Aucun PDF</div>
+            <div class="no-pdf-subtitle">Sélectionnez un document dans l'administration</div>
+        </div>
+
+        <div class="pdf-info" id="pdf-info">
+            <span class="pdf-name" id="pdf-name">-</span>
+            <span class="pdf-page-indicator" id="pdf-page">Page 0 / 0</span>
+        </div>
+
+        <div class="pdf-progress" id="pdf-progress" style="width: 0%"></div>
+    </div>
+
+    <div class="footer-area">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="footer-banner">
+            <div class="annonce-label">Annonce</div>
+            <div class="annonce-sep"></div>
+            <div class="annonce-scroll" id="annonce-scroll">
+                <div class="annonce-track track-1"><span id="annonce-text"></span></div>
+                <div class="annonce-track track-2"><span id="annonce-text2"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-dots">
+        <div class="page-dot"></div>
+        <div class="page-dot"></div>
+        <div class="page-dot active"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/display3.js') }}"></script>
+</body>
+
+</html>

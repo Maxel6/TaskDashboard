@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Réglages</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_settings.css') }}">
 </head>
+
 <body>
 
     <div class="topbar">
@@ -15,108 +17,116 @@
 
     <div class="page">
 
-        <!-- Équipe -->
-        <div class="card">
-            <div class="card-title">👥 Équipe</div>
-            <form action="/add_collaborateur" method="POST">
-                <div style="display:flex; gap:10px;">
-                    <input type="text" name="nom" placeholder="Prénom Nom (ex : Jean D.)" required style="margin-bottom:0">
-                    <button type="submit" class="btn btn-primary" style="width:auto; padding:0 18px; margin:0">+</button>
-                </div>
-            </form>
-            <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px;">
-                {% for collab in data.collaborateurs %}
-                <div style="display:flex; align-items:center; justify-content:space-between;
-                            background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
-                            border-radius:10px; padding:12px 14px;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div style="width:34px; height:34px; border-radius:50%;
-                                    background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.25);
-                                    display:flex; align-items:center; justify-content:center;
-                                    font-family:'Bebas Neue',sans-serif; font-size:1rem; color:var(--blue);">
-                            {{ collab[0] }}
-                        </div>
-                        <span style="font-weight:600; font-size:14px;">{{ collab }}</span>
+        <div class="cards-grid">
+
+            <!-- Équipe -->
+            <div class="card">
+                <div class="card-title">👥 Équipe</div>
+                <form action="/add_collaborateur" method="POST">
+                    <div class="input-row">
+                        <input type="text" name="nom" placeholder="Prénom Nom (ex : Jean D.)" required
+                            class="input-no-margin">
+                        <button type="submit" class="btn btn-primary btn-auto-width">+</button>
                     </div>
-                    <a href="/delete_collaborateur/{{ loop.index0 }}"
-                       class="btn-delete-task"
-                       onclick="return confirm('Retirer {{ collab }} ?')">✕</a>
+                </form>
+                <div class="collaborateurs-list">
+                    {% for collab in data.collaborateurs %}
+                    <div class="collab-item">
+                        <div class="collab-item-inner">
+                            <div class="collab-avatar-small">
+                                {{ collab[0] }}
+                            </div>
+                            <span class="collab-name-small">{{ collab }}</span>
+                        </div>
+                        <a href="/delete_collaborateur/{{ loop.index0 }}" class="btn-delete-task"
+                            onclick="return confirm('Retirer {{ collab }} ?')">✕</a>
+                    </div>
+                    {% endfor %}
+                    {% if not data.collaborateurs %}
+                    <div class="empty-collab">
+                        Aucun collaborateur
+                    </div>
+                    {% endif %}
                 </div>
-                {% endfor %}
-                {% if not data.collaborateurs %}
-                <div style="text-align:center; color:rgba(255,255,255,0.2); font-size:13px; padding:20px 0;">
-                    Aucun collaborateur
-                </div>
-                {% endif %}
             </div>
-        </div>
 
-        <!-- Affichage -->
-        <div class="card">
-            <div class="card-title">🖥️ Affichage</div>
-            <form action="/update_display" method="POST">
-                <span class="equipe-label">Pages actives</span>
-                <div style="display:flex; gap:12px; margin-bottom:16px;">
-                    <label class="toggle-label">
-                        <input type="checkbox" name="page1" value="1" id="page1-cb"
-                               {% if 1 in data.display.pages %}checked{% endif %}
-                               onchange="checkAtLeastOne(this, 'page2-cb')">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">Page 1 — Tâches</span>
-                    </label>
-                    <label class="toggle-label">
-                        <input type="checkbox" name="page2" value="2" id="page2-cb"
-                               {% if 2 in data.display.pages %}checked{% endif %}
-                               onchange="checkAtLeastOne(this, 'page1-cb')">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">Page 2 — Moteurs</span>
-                    </label>
-                </div>
+            <!-- Affichage -->
+            <div class="card card-wide">
+                <div class="card-title">🖥️ Affichage</div>
+                <form action="/update_display" method="POST">
+                    <span class="equipe-label">Pages actives</span>
+                    <div class="pages-toggle">
+                        <label class="toggle-label">
+                            <input type="checkbox" name="page1" value="1" id="page1-cb" {% if 1 in data.display.pages
+                                %}checked{% endif %} onchange="checkAtLeastOne(this, 'page2-cb', 'page3-cb')">
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                            <span class="toggle-text">Page 1 — Tâches</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" name="page2" value="2" id="page2-cb" {% if 2 in data.display.pages
+                                %}checked{% endif %} onchange="checkAtLeastOne(this, 'page1-cb', 'page3-cb')">
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                            <span class="toggle-text">Page 2 — Moteurs</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" name="page3" value="3" id="page3-cb" {% if 3 in data.display.pages
+                                %}checked{% endif %} onchange="checkAtLeastOne(this, 'page1-cb', 'page2-cb')">
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                            <span class="toggle-text">Page 3 — PDF</span>
+                        </label>
+                    </div>
 
-                <span class="equipe-label">Durée Page 1 — Tâches</span>
-                <div class="slider-container">
-                    <input type="range" name="duree1" id="slider-duree1"
-                           min="10" max="300" step="5"
-                           value="{{ data.display.duree1 }}"
-                           oninput="updateSliderLabel(this.value, 'slider-label1')">
-                    <div class="slider-value" id="slider-label1">{{ data.display.duree1 }}s</div>
-                </div>
-                <div class="slider-bounds" style="margin-bottom:14px;"><span>10s</span><span>5min</span></div>
+                    <span class="equipe-label">Durée Page 1 — Tâches</span>
+                    <div class="slider-container">
+                        <input type="range" name="duree1" id="slider-duree1" min="10" max="300" step="5"
+                            value="{{ data.display.duree1 }}" oninput="updateSliderLabel(this.value, 'slider-label1')">
+                        <div class="slider-value" id="slider-label1">{{ data.display.duree1 }}s</div>
+                    </div>
+                    <div class="slider-bounds slider-bounds-spacing"><span>10s</span><span>5min</span></div>
 
-                <span class="equipe-label">Durée Page 2 — Moteurs</span>
-                <div class="slider-container">
-                    <input type="range" name="duree2" id="slider-duree2"
-                           min="10" max="300" step="5"
-                           value="{{ data.display.duree2 }}"
-                           oninput="updateSliderLabel(this.value, 'slider-label2')">
-                    <div class="slider-value" id="slider-label2">{{ data.display.duree2 }}s</div>
-                </div>
-                <div class="slider-bounds"><span>10s</span><span>5min</span></div>
+                    <span class="equipe-label">Durée Page 2 — Moteurs</span>
+                    <div class="slider-container">
+                        <input type="range" name="duree2" id="slider-duree2" min="10" max="300" step="5"
+                            value="{{ data.display.duree2 }}" oninput="updateSliderLabel(this.value, 'slider-label2')">
+                        <div class="slider-value" id="slider-label2">{{ data.display.duree2 }}s</div>
+                    </div>
+                    <div class="slider-bounds slider-bounds-spacing"><span>10s</span><span>5min</span></div>
 
-                <button type="submit" class="btn btn-neutral" style="margin-top:14px">Appliquer</button>
-            </form>
-        </div>
+                    <span class="equipe-label">Durée Page 3 — PDF</span>
+                    <div class="slider-container">
+                        <input type="range" name="duree3" id="slider-duree3" min="10" max="300" step="5"
+                            value="{{ data.display.duree3 | default(30) }}"
+                            oninput="updateSliderLabel(this.value, 'slider-label3')">
+                        <div class="slider-value" id="slider-label3">{{ data.display.duree3 | default(30) }}s</div>
+                    </div>
+                    <div class="slider-bounds slider-bounds-spacing"><span>10s</span><span>5min</span></div>
 
-        <!-- Heure -->
-        <div class="card">
-            <div class="card-title">🕐 Date &amp; Heure</div>
-            <form action="/update_time" method="POST">
-                <span class="equipe-label">Régler à</span>
-                <input type="datetime-local" name="datetime" id="datetime-input" style="margin-bottom:10px;">
-                <button type="submit" class="btn btn-neutral">Appliquer</button>
-            </form>
-        </div>
-
-        <!-- Notifications -->
-        <div class="card">
-            <div class="card-title">🔔 Notifications</div>
-            <div class="notif-row" onclick="toggleNotif()">
-                <span class="notif-label">Son lors d'une nouvelle tâche</span>
-                <label class="toggle-label" style="width:auto; background:none; border:none; padding:0; pointer-events:none;">
-                    <input type="checkbox" id="notif-cb">
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                </label>
+                    <button type="submit" class="btn btn-neutral btn-submit">Appliquer</button>
+                </form>
             </div>
+
+            <!-- Heure -->
+            <div class="card">
+                <div class="card-title">🕐 Date &amp; Heure</div>
+                <form action="/update_time" method="POST">
+                    <span class="equipe-label">Régler à</span>
+                    <input type="datetime-local" name="datetime" id="datetime-input" class="input-spacing">
+                    <button type="submit" class="btn btn-neutral">Appliquer</button>
+                </form>
+            </div>
+
+            <!-- Notifications -->
+            <div class="card">
+                <div class="card-title">🔔 Notifications</div>
+                <div class="notif-row" onclick="toggleNotif()">
+                    <span class="notif-label">Son lors d'une nouvelle tâche</span>
+                    <label class="toggle-label toggle-no-style">
+                        <input type="checkbox" id="notif-cb">
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -135,4 +145,5 @@
     </script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
+
 </html>

@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
-import json, os, uuid
+import json, os, uuid, werkzeug
 from datetime import datetime
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'pdfs')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 DB_FILE = 'data.json'
@@ -16,8 +19,10 @@ def load_data():
             "taches": [],
             "moteurs": [],
             "collaborateurs": ["Bastien Z", "Florian C", "Mor F", "Pascal O", "Patrick L", "Sebastien B", "Silvain R"],
-            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30},
-            "time_ref": 0
+            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30, "duree3": 30},
+            "time_ref": 0,
+            "pdfs": [],
+            "selected_pdfs": []
         }
         save_data(initial_data)
         return initial_data
@@ -32,8 +37,10 @@ def load_data():
             "taches": [],
             "moteurs": [],
             "collaborateurs": ["Bastien Z", "Florian C", "Mor F", "Pascal O", "Patrick L", "Sebastien B", "Silvain R"],
-            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30},
-            "time_ref": 0
+            "display": {"pages": [1, 2], "duree1": 30, "duree2": 30, "duree3": 30},
+            "time_ref": 0,
+            "pdfs": [],
+            "selected_pdfs": []
         }
         save_data(initial_data)
         return initial_data
@@ -62,8 +69,21 @@ def load_data():
         if 'duree2' not in data['display']:
             data['display']['duree2'] = 30
             changed = True
+        if 'duree3' not in data['display']:
+            data['display']['duree3'] = 30
+            changed = True
+        # duree_pdf removed - now calculated as duree3 / num_pdfs on frontend
+        if 'duree_pdf' in data['display']:
+            del data['display']['duree_pdf']
+            changed = True
     if 'time_ref' not in data:
         data['time_ref'] = 0
+        changed = True
+    if 'pdfs' not in data:
+        data['pdfs'] = []
+        changed = True
+    if 'selected_pdfs' not in data:
+        data['selected_pdfs'] = []
         changed = True
     for t in data.get('taches', []):
         if 'id' not in t:
@@ -102,6 +122,11 @@ def display1():
 def display2():
     data = load_data()
     return render_template('display2.html', data=data)
+
+@app.route('/display3')
+def display3():
+    data = load_data()
+    return render_template('display3.html', data=data)
 
 @app.route('/admin')
 def admin():
@@ -240,12 +265,15 @@ def update_display():
     pages = []
     if request.form.get('page1'): pages.append(1)
     if request.form.get('page2'): pages.append(2)
+    if request.form.get('page3'): pages.append(3)
     if not pages: pages = [1]
     try:    duree1 = max(10, min(300, int(request.form.get('duree1', 30))))
     except: duree1 = 30
     try:    duree2 = max(10, min(300, int(request.form.get('duree2', 30))))
     except: duree2 = 30
-    data['display'] = {"pages": pages, "duree1": duree1, "duree2": duree2}
+    try:    duree3 = max(10, min(300, int(request.form.get('duree3', 30))))
+    except: duree3 = 30
+    data['display'] = {"pages": pages, "duree1": duree1, "duree2": duree2, "duree3": duree3}
     save_data(data)
     return redirect(url_for('admin_settings'))
 
@@ -259,6 +287,71 @@ def update_time():
         save_data(data)
     except: pass
     return redirect(url_for('admin_settings'))
+
+# ── PDFs ───────────────────────────────────────────────────────────────
+@app.route('/upload_pdf', methods=['POST'])
+def upload_pdf():
+    if 'pdf' not in request.files:
+        return redirect(url_for('admin') + '#page3')
+    file = request.files['pdf']
+    if file.filename == '':
+        return redirect(url_for('admin') + '#page3')
+    if file and file.filename.lower().endswith('.pdf'):
+        filename = werkzeug.utils.secure_filename(file.filename)
+        unique_name = f"{str(uuid.uuid4())[:8]}_{filename}"
+        filepath = os.path.join(UPLOAD_FOLDER, unique_name)
+        file.save(filepath)
+
+        data = load_data()
+        data['pdfs'].append({
+            "id": str(uuid.uuid4())[:8],
+            "original_name": filename,
+            "filename": unique_name,
+            "uploaded_at": datetime.now().isoformat()
+        })
+        save_data(data)
+    return redirect(url_for('admin') + '#page3')
+
+@app.route('/delete_pdf/<pdf_id>')
+def delete_pdf(pdf_id):
+    data = load_data()
+    pdf_to_delete = None
+    for pdf in data['pdfs']:
+        if pdf['id'] == pdf_id:
+            pdf_to_delete = pdf
+            break
+    if pdf_to_delete:
+        filepath = os.path.join(UPLOAD_FOLDER, pdf_to_delete['filename'])
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        data['pdfs'] = [p for p in data['pdfs'] if p['id'] != pdf_id]
+        data['selected_pdfs'] = [p for p in data['selected_pdfs'] if p != pdf_id]
+        save_data(data)
+    return redirect(url_for('admin') + '#page3')
+
+@app.route('/update_selected_pdfs', methods=['POST'])
+def update_selected_pdfs():
+    data = load_data()
+    selected = request.form.getlist('selected_pdfs')
+    data['selected_pdfs'] = selected
+    save_data(data)
+    return redirect(url_for('admin') + '#page3')
+
+@app.route('/uploads/pdfs/<filename>')
+def serve_pdf(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route('/delete_all_pdfs')
+def delete_all_pdfs():
+    data = load_data()
+    for pdf in data['pdfs']:
+        filepath = os.path.join(UPLOAD_FOLDER, pdf['filename'])
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    data['pdfs'] = []
+    data['selected_pdfs'] = []
+    save_data(data)
+    return redirect(url_for('admin') + '#page3')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)
