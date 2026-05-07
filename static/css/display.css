@@ -353,6 +353,8 @@ body::after {
     display: flex;
     align-items: center;
     height: 100%;
+    will-change: transform;
+    backface-visibility: hidden;
 }
 
 .annonce-track span {
@@ -376,11 +378,11 @@ body::after {
 
 @keyframes marquee-track {
     from {
-        transform: translateX(-100%);
+        transform: translate3d(-100%, 0, 0);
     }
 
     to {
-        transform: translateX(100vw);
+        transform: translate3d(100vw, 0, 0);
     }
 }
 
