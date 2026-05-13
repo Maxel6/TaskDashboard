@@ -5,6 +5,8 @@ from datetime import datetime
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'pdfs')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+ALLOWED_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
+
 app = Flask(__name__)
 DB_FILE = 'data.json'
 
@@ -289,53 +291,64 @@ def update_time():
     return redirect(url_for('admin_settings'))
 
 # ── PDFs ───────────────────────────────────────────────────────────────
-@app.route('/upload_pdf', methods=['POST'])
-def upload_pdf():
-    if 'pdf' not in request.files:
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    # On vérifie 'file' au lieu de 'pdf' pour être générique
+    if 'file' not in request.files:
         return redirect(url_for('admin') + '#page3')
-    file = request.files['pdf']
+    
+    file = request.files['file']
     if file.filename == '':
         return redirect(url_for('admin') + '#page3')
-    if file and file.filename.lower().endswith('.pdf'):
+
+    # Vérification de l'extension
+    ext = os.path.splitext(file.filename)[1].lower()
+    if file and ext in ALLOWED_EXTENSIONS:
         filename = werkzeug.utils.secure_filename(file.filename)
         unique_name = f"{str(uuid.uuid4())[:8]}_{filename}"
         filepath = os.path.join(UPLOAD_FOLDER, unique_name)
         file.save(filepath)
 
         data = load_data()
+        # On garde la structure 'pdfs' ou on la renomme en 'files' dans ton JSON
         data['pdfs'].append({
             "id": str(uuid.uuid4())[:8],
             "original_name": filename,
             "filename": unique_name,
+            "type": "image" if ext != '.pdf' else "pdf", # Optionnel: pour filtrer plus tard
             "uploaded_at": datetime.now().isoformat()
         })
         save_data(data)
+        
     return redirect(url_for('admin') + '#page3')
 
-@app.route('/delete_pdf/<pdf_id>')
-def delete_pdf(pdf_id):
+@app.route('/delete_file/<file_id>')
+def delete_file(file_id):
     data = load_data()
-    pdf_to_delete = None
-    for pdf in data['pdfs']:
-        if pdf['id'] == pdf_id:
-            pdf_to_delete = pdf
-            break
-    if pdf_to_delete:
-        filepath = os.path.join(UPLOAD_FOLDER, pdf_to_delete['filename'])
+    file_to_delete = next((f for f in data['pdfs'] if f['id'] == file_id), None)
+    
+    if file_to_delete:
+        filepath = os.path.join(UPLOAD_FOLDER, file_to_delete['filename'])
         if os.path.exists(filepath):
             os.remove(filepath)
-        data['pdfs'] = [p for p in data['pdfs'] if p['id'] != pdf_id]
-        data['selected_pdfs'] = [p for p in data['selected_pdfs'] if p != pdf_id]
+        data['pdfs'] = [f for f in data['pdfs'] if f['id'] != file_id]
+        data['selected_pdfs'] = [f for f in data['selected_pdfs'] if f != file_id]
         save_data(data)
+        
     return redirect(url_for('admin') + '#page3')
 
 @app.route('/update_selected_pdfs', methods=['POST'])
 def update_selected_pdfs():
     data = load_data()
+    # Récupère la liste des IDs cochés
     selected = request.form.getlist('selected_pdfs')
     data['selected_pdfs'] = selected
     save_data(data)
     return redirect(url_for('admin') + '#page3')
+
+@app.route('/uploads/files/<filename>')
+def serve_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 @app.route('/uploads/pdfs/<filename>')
 def serve_pdf(filename):

@@ -148,6 +148,14 @@ html, body {
     color: rgba(255, 255, 255, 0.4);
 }
 
+#pdf-info {
+    display: none !important;
+}
+
+/* Optionnel : Si vous voulez aussi enlever la barre de progression tout en bas */
+#pdf-progress {
+    display: none !important;
+}
 .no-pdf-icon::after {
     content: '';
     position: absolute;

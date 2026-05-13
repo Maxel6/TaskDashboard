@@ -1,11 +1,8 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdfjs/pdf.worker.min.js';
 
 // ==========================================
-// CONFIGURATION - Modifier ces valeurs ici
+// CONFIGURATION
 // ==========================================
-
-// Durée par PDF quand il n'y a PAS d'autres pages (tâches/moteurs) - en millisecondes
-// Par défaut: 1 minute = 60000ms
 const DEFAULT_TIME_PER_PDF_MS = 60000;
 
 // ==========================================
@@ -13,15 +10,23 @@ const DEFAULT_TIME_PER_PDF_MS = 60000;
 let pdfs = [], selectedPdfIds = [], currentPdfIndex = 0, rotationTimer = null, timePerPageMs = 5000;
 let lastPdfsHash = null, currentPdfDoc = null, currentPageNum = 1, currentPdfTotalPages = 1;
 let lastDisplayHash = null, switchTimer = null, pages_active = [1, 2, 3], page3Duration = 30;
-let hasOtherPages = false; // true si tâches ou moteurs sont actifs
+let hasOtherPages = false;
 
 const canvas = document.getElementById('pdf-canvas'), ctx = canvas.getContext('2d');
-const wrapper = document.getElementById('pdf-wrapper'), noPdf = document.getElementById('no-pdf');
+const wrapper = document.getElementById('pdf-wrapper');
+const imageWrapper = document.getElementById('image-wrapper'); // Nouveau
+const imageViewer = document.getElementById('image-viewer');   // Nouveau
+const noPdf = document.getElementById('no-pdf');
 const loader = document.getElementById('loader');
 const pdfInfo = document.getElementById('pdf-info');
 const pdfName = document.getElementById('pdf-name');
 const pdfPage = document.getElementById('pdf-page');
 const pdfProgress = document.getElementById('pdf-progress');
+
+// Helper pour détecter si c'est une image
+function isImage(filename) {
+    return /\.(png|jpg|jpeg|webp)$/i.test(filename);
+}
 
 function calculateAspectRatioFitScale(pageWidth, pageHeight, viewportWidth, viewportHeight, devicePixelRatio) {
     return Math.min(viewportWidth / pageWidth, viewportHeight / pageHeight) * devicePixelRatio;
@@ -35,34 +40,52 @@ function setLoading(loading) {
     }
 }
 
-function updatePdfInfo(name, page, total) {
+function updatePdfInfo(name, page, total, isImg = false) {
     pdfName.textContent = name || '-';
-    pdfPage.textContent = `Page ${page} / ${total}`;
-    // Barre de progression active seulement si d'autres pages existent (tâches/moteurs)
+    pdfPage.textContent = isImg ? `Image` : `Page ${page} / ${total}`;
+    
     if (hasOtherPages) {
         const progress = total > 0 ? (page / total) * 100 : 0;
         pdfProgress.style.width = `${progress}%`;
     } else {
-        // Sinon, barre pleine (pas de progression temporelle)
         pdfProgress.style.width = '100%';
     }
 }
 
-// Vérifie s'il n'y a qu'un seul PDF avec une seule page (pas de rotation nécessaire)
 function isSingleStaticPdf() {
     return selectedPdfIds.length === 1 && currentPdfTotalPages === 1;
 }
 
+// Fonction pour afficher une IMAGE
+async function renderImage(filename, displayName) {
+    setLoading(true);
+    
+    // Switch visibility
+    wrapper.classList.add('hidden');
+    imageWrapper.classList.remove('hidden');
+    
+    imageViewer.src = `/uploads/pdfs/${filename}`;
+    
+    imageViewer.onload = () => {
+        setLoading(false);
+        updatePdfInfo(displayName, 1, 1, true);
+    };
+}
+
+// Fonction pour afficher un PDF
 async function renderPdfPage(pdfDoc, pageNum, pdfNameText = '') {
     try {
         const skipTransition = isSingleStaticPdf();
 
         if (!skipTransition) {
             setLoading(true);
-            // Fade out canvas before rendering
             canvas.classList.add('fade-out');
             await new Promise(r => setTimeout(r, 150));
         }
+
+        // Switch visibility
+        imageWrapper.classList.add('hidden');
+        wrapper.classList.remove('hidden');
 
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.0 });
@@ -78,7 +101,6 @@ async function renderPdfPage(pdfDoc, pageNum, pdfNameText = '') {
         await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
 
         if (!skipTransition) {
-            // Fade in canvas after rendering
             canvas.classList.remove('fade-out');
             setLoading(false);
         }
@@ -86,61 +108,67 @@ async function renderPdfPage(pdfDoc, pageNum, pdfNameText = '') {
         updatePdfInfo(pdfNameText, pageNum, currentPdfTotalPages);
     } catch (error) {
         console.error('Error rendering PDF:', error);
-        if (!isSingleStaticPdf()) setLoading(false);
+        setLoading(false);
     }
 }
 
 function getDisplayName(filename) {
-    return filename.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ').trim();
+    return filename.replace(/\.(pdf|png|jpg|jpeg)$/i, '').replace(/[_-]/g, ' ').replace(/^[a-z0-9]{8}_/i, '').trim();
 }
 
-async function loadPdfDoc(filename) {
+async function loadMedia(filename) {
     const wasEmpty = !currentPdfDoc;
-    if (!wasEmpty) setLoading(true);
+    const displayName = getDisplayName(filename);
 
-    if (currentPdfDoc) currentPdfDoc.destroy();
-    currentPdfDoc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${filename}` }).promise;
-    currentPdfTotalPages = currentPdfDoc.numPages;
-    currentPageNum = 1;
+    if (isImage(filename)) {
+        if (currentPdfDoc) {
+            currentPdfDoc.destroy();
+            currentPdfDoc = null;
+        }
+        currentPdfTotalPages = 1;
+        currentPageNum = 1;
+        await renderImage(filename, displayName);
+    } else {
+        if (!wasEmpty) setLoading(true);
+        if (currentPdfDoc) currentPdfDoc.destroy();
+        
+        currentPdfDoc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${filename}` }).promise;
+        currentPdfTotalPages = currentPdfDoc.numPages;
+        currentPageNum = 1;
 
-    // Si c'est le premier chargement et qu'il n'y a qu'un seul PDF avec une page, pas de loader
-    const skipLoader = wasEmpty && isSingleStaticPdf();
-
-    await renderPdfPage(currentPdfDoc, currentPageNum, getDisplayName(filename));
-    if (!skipLoader) setLoading(false);
+        await renderPdfPage(currentPdfDoc, currentPageNum, displayName);
+        setLoading(false);
+    }
 }
 
 function showNoPdf() {
-    wrapper.classList.remove('visible');
-    setTimeout(() => wrapper.classList.add('hidden'), 400);
+    wrapper.classList.add('hidden');
+    imageWrapper.classList.add('hidden');
     noPdf.classList.remove('hidden');
     pdfInfo.classList.remove('visible');
     pdfProgress.style.width = '0%';
 }
 
 function showPdfContainer() {
-    wrapper.classList.remove('hidden');
     noPdf.classList.add('hidden');
-    setTimeout(() => wrapper.classList.add('visible'), 50);
     pdfInfo.classList.add('visible');
 }
 
 async function advanceSlide() {
-    if (!currentPdfDoc || selectedPdfIds.length === 0) return;
+    if (selectedPdfIds.length === 0) return;
 
-    const currentPdf = pdfs.find(p => p.id === selectedPdfIds[currentPdfIndex]);
-
-    // If there are more pages in current PDF, advance page
-    if (currentPageNum < currentPdfTotalPages) {
+    // Si on est sur un PDF et qu'il reste des pages
+    if (currentPdfDoc && currentPageNum < currentPdfTotalPages) {
         currentPageNum++;
-        await renderPdfPage(currentPdfDoc, currentPageNum, currentPdf ? getDisplayName(currentPdf.filename) : '');
+        const currentPdf = pdfs.find(p => p.id === selectedPdfIds[currentPdfIndex]);
+        await renderPdfPage(currentPdfDoc, currentPageNum, getDisplayName(currentPdf.filename));
     } else {
-        // Move to next PDF
+        // Sinon, on passe au média suivant (Image ou PDF)
         currentPdfIndex = (currentPdfIndex + 1) % selectedPdfIds.length;
-        const pdfId = selectedPdfIds[currentPdfIndex];
-        const pdf = pdfs.find(p => p.id === pdfId);
-        if (pdf) {
-            await loadPdfDoc(pdf.filename);
+        const mediaId = selectedPdfIds[currentPdfIndex];
+        const media = pdfs.find(p => p.id === mediaId);
+        if (media) {
+            await loadMedia(media.filename);
         }
     }
 }
@@ -156,14 +184,12 @@ async function startPresentation() {
 
     showPdfContainer();
 
-    // Load first PDF
-    const pdfId = selectedPdfIds[currentPdfIndex];
-    const pdf = pdfs.find(p => p.id === pdfId);
-    if (pdf) {
-        await loadPdfDoc(pdf.filename);
-
-        // Démarrer le timer seulement s'il y a plus d'un PDF ou plus d'une page
-        if (!isSingleStaticPdf()) {
+    const mediaId = selectedPdfIds[currentPdfIndex];
+    const media = pdfs.find(p => p.id === mediaId);
+    
+    if (media) {
+        await loadMedia(media.filename);
+        if (selectedPdfIds.length > 1 || currentPdfTotalPages > 1) {
             rotationTimer = setInterval(advanceSlide, timePerPageMs);
         }
     } else {
@@ -171,35 +197,28 @@ async function startPresentation() {
     }
 }
 
-function calculateTimePerPage() {
+async function calculateTimePerPage() {
     if (!selectedPdfIds.length) return 5000;
 
-    // Si PAS d'autres pages (tâches/moteurs), utiliser le temps fixe par PDF
     if (!hasOtherPages) {
-        // Temps fixe par PDF (DEFAULT_TIME_PER_PDF_MS), divisé par le nombre de pages de ce PDF
-        const currentPdf = pdfs.find(p => p.id === selectedPdfIds[currentPdfIndex]);
-        if (currentPdf && currentPdfDoc) {
-            return Math.max(DEFAULT_TIME_PER_PDF_MS / currentPdfTotalPages, 3000);
-        }
-        return DEFAULT_TIME_PER_PDF_MS;
+        return DEFAULT_TIME_PER_PDF_MS; 
     }
 
-    // Si d'autres pages existent, calculer basé sur la durée totale de la page
-    return Promise.all(selectedPdfIds.map(async (id) => {
-        const pdf = pdfs.find(p => p.id === id);
-        if (!pdf) return 1;
+    // Calcul complexe pour répartir la durée totale sur toutes les pages de tous les fichiers
+    const pageCounts = await Promise.all(selectedPdfIds.map(async (id) => {
+        const media = pdfs.find(p => p.id === id);
+        if (!media) return 0;
+        if (isImage(media.filename)) return 1;
         try {
-            const doc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${pdf.filename}` }).promise;
+            const doc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${media.filename}` }).promise;
             const count = doc.numPages;
             doc.destroy();
             return count;
-        } catch (e) {
-            return 1;
-        }
-    })).then(pageCounts => {
-        const totalPages = pageCounts.reduce((a, b) => a + b, 0);
-        return Math.max((page3Duration * 1000) / totalPages, 3000);
-    });
+        } catch (e) { return 1; }
+    }));
+
+    const totalPages = pageCounts.reduce((a, b) => a + b, 0);
+    return Math.max((page3Duration * 1000) / totalPages, 3000);
 }
 
 function applyDisplaySettings(display) {
@@ -211,22 +230,22 @@ function applyDisplaySettings(display) {
     const newPages = display.pages || [1, 2];
     const newDuree3 = display.duree3 || 30;
 
-    if (newDuree3 !== page3Duration) {
-        page3Duration = newDuree3;
-    }
+    page3Duration = newDuree3;
+    
     if (!newPages.includes(3)) {
-        window.location.href = newPages.includes(1) ? '/display1' : newPages.includes(2) ? '/display2' : '/dashboard';
+        window.location.href = newPages.includes(1) ? '/display1' : '/display2';
         return;
     }
 
-    // Détecter si d'autres pages sont actives (1 = tâches, 2 = moteurs)
     hasOtherPages = newPages.includes(1) || newPages.includes(2);
-
     pages_active = newPages;
+
     if (switchTimer) clearTimeout(switchTimer);
     if (newPages.length > 1) {
         const nextPage = newPages[(newPages.indexOf(3) + 1) % newPages.length];
-        switchTimer = setTimeout(() => window.location.href = nextPage === 1 ? '/display1' : nextPage === 2 ? '/display2' : '/display3', page3Duration * 1000);
+        switchTimer = setTimeout(() => {
+            window.location.href = nextPage === 1 ? '/display1' : '/display2';
+        }, page3Duration * 1000);
     }
 }
 
@@ -238,16 +257,11 @@ async function updatePdfs(data) {
     pdfs = data.pdfs || [];
     selectedPdfIds = data.selected_pdfs || [];
 
-    // Mettre à jour les annonces
     updateAnnonces(data.annonce);
-
     applyDisplaySettings(data.display);
 
-    // Recalculate timing based on total pages
     const newTimePerPage = await calculateTimePerPage();
-    if (Math.abs(newTimePerPage - timePerPageMs) > 100) {
-        timePerPageMs = newTimePerPage;
-    }
+    timePerPageMs = newTimePerPage;
 
     currentPdfIndex = 0;
     await startPresentation();
@@ -258,79 +272,47 @@ async function refreshData() {
         const res = await fetch('/api/data');
         const data = await res.json();
         await updatePdfs(data);
-    } catch (e) {
-        console.error('Error fetching data:', e);
-    }
+    } catch (e) { console.error('Error fetching data:', e); }
 }
 
 // ==========================================
-// HORLOGE ET DATE
+// HORLOGE, DATE, ANNONCES (Inchangés)
 // ==========================================
-
 function updateClock() {
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
     const clockEl = document.getElementById('clock');
-    if (clockEl) clockEl.textContent = `${hours}:${minutes}`;
+    if (clockEl) clockEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
-
 function updateDate() {
     const now = new Date();
-    const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    const dateStr = now.toLocaleDateString('fr-FR', options);
     const dateEl = document.getElementById('date');
-    if (dateEl) dateEl.textContent = dateStr.toUpperCase();
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
 }
-
 setInterval(updateClock, 1000);
 setInterval(updateDate, 60000);
-updateClock();
-updateDate();
-
-// ==========================================
-// ANNONCES
-// ==========================================
+updateClock(); updateDate();
 
 let currentAnnonce = '';
-
 function updateAnnonces(annonce) {
     if (annonce === currentAnnonce) return;
     currentAnnonce = annonce || '';
-
-    const annonceText = document.getElementById('annonce-text');
-    const annonceText2 = document.getElementById('annonce-text2');
-
-    if (annonceText) annonceText.textContent = currentAnnonce;
-    if (annonceText2) annonceText2.textContent = currentAnnonce;
-
-    // Ajuster la vitesse du défilement selon la longueur
+    const t1 = document.getElementById('annonce-text');
+    const t2 = document.getElementById('annonce-text2');
+    if (t1) t1.textContent = currentAnnonce;
+    if (t2) t2.textContent = currentAnnonce;
     const marqueeDuration = Math.max(15, currentAnnonce.length * 0.15);
     document.documentElement.style.setProperty('--marquee-duration', `${marqueeDuration}s`);
 }
 
-// ==========================================
-// NETTOYAGE
-// ==========================================
-
+// Nettoyage et Resize
 window.addEventListener('beforeunload', () => {
     if (rotationTimer) clearInterval(rotationTimer);
     if (switchTimer) clearTimeout(switchTimer);
     if (currentPdfDoc) currentPdfDoc.destroy();
 });
 
-let resizeTimeout;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(async () => {
-        if (currentPdfDoc) await renderPdfPage(currentPdfDoc, currentPageNum);
-    }, 150);
-});
-
-window.addEventListener('orientationchange', () => {
-    setTimeout(async () => {
-        if (currentPdfDoc) await renderPdfPage(currentPdfDoc, currentPageNum);
-    }, 300);
+window.addEventListener('resize', async () => {
+    if (currentPdfDoc) await renderPdfPage(currentPdfDoc, currentPageNum);
 });
 
 setInterval(refreshData, 5000);
