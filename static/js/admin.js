@@ -68,3 +68,51 @@ if (dtInput) {
     const pad = n => String(n).padStart(2, '0');
     dtInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
+
+/* ==========================================================================
+   À ajouter à la fin de static/js/admin.js
+
+   L'ordre de diffusion est simplement l'ordre des cases dans le DOM :
+   un formulaire soumet ses champs dans l'ordre du document, donc
+   request.form.getlist('selected_pdfs') arrive déjà trié côté Flask.
+   Aucun champ caché à synchroniser.
+   ========================================================================== */
+
+function movePdf(button, direction) {
+    const item = button.closest('.pdf-item');
+    const list = item && item.parentElement;
+    if (!list) return;
+
+    const sibling = direction < 0 ? item.previousElementSibling : item.nextElementSibling;
+    if (!sibling) return;
+
+    if (direction < 0) list.insertBefore(item, sibling);
+    else list.insertBefore(sibling, item);
+
+    refreshPdfRanks();
+}
+
+/* Numérote les médias cochés dans leur ordre de passage. */
+function refreshPdfRanks() {
+    const items = document.querySelectorAll('#pdf-list .pdf-item');
+    let rank = 0;
+
+    items.forEach(item => {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        const badge = item.querySelector('.pdf-rank');
+        const selected = checkbox && checkbox.checked;
+
+        item.classList.toggle('is-selected', !!selected);
+        if (badge) badge.textContent = selected ? String(++rank) : '';
+    });
+
+    const hint = document.getElementById('duree-media-label');
+    if (hint && rank <= 1) hint.dataset.single = '1';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('pdf-list')) refreshPdfRanks();
+
+    const slider = document.getElementById('slider-duree-media');
+    if (slider) updateSliderLabel(slider.value, 'duree-media-label');
+});

@@ -3,21 +3,102 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard - Médias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Médias</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/display.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/display3.css') }}">
-    <!-- PDF.js pour les documents PDF -->
     <script src="{{ url_for('static', filename='js/pdfjs/pdf.min.js') }}"></script>
     <style>
-        /* Style pour s'assurer que l'image occupe bien l'espace */
-        .image-display {
+        /* ------------------------------------------------------------------
+           Layout de la page : hauteur fixée à l'écran, aucun scroll possible.
+           La scène média occupe tout l'espace restant entre header et footer.
+           ------------------------------------------------------------------ */
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header,
+        .footer-area {
+            flex: 0 0 auto;
+        }
+
+        .pdf-container {
+            flex: 1 1 auto;
+            position: relative;
+            min-height: 0;
+            /* indispensable : sans ça le flex enfant déborde */
+            overflow: hidden;
+        }
+
+        /* Les deux scènes se superposent et remplissent le conteneur */
+        .stage {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .stage.hidden {
+            display: none !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #pdf-canvas {
+            display: block;
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain;
-            display: block;
-            margin: auto;
         }
-        .hidden { display: none !important; }
+
+        #image-viewer {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            image-orientation: from-image;
+            -webkit-user-drag: none;
+        }
+
+        /* Les overlays restent au-dessus de la scène */
+        #loader,
+        .pdf-info,
+        .pdf-progress,
+        .no-pdf {
+            position: absolute;
+            z-index: 5;
+        }
+
+        .page-dots {
+            position: absolute;
+            z-index: 6;
+        }
+
+        .media-error {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: 500 1.4rem/1.4 system-ui, sans-serif;
+            opacity: .6;
+            z-index: 4;
+        }
     </style>
 </head>
 
@@ -29,24 +110,28 @@
     </div>
 
     <div class="pdf-container" id="pdf-container">
+
         <div class="loader" id="loader">
             <div class="loader-spinner"></div>
             <div class="loader-text">Chargement</div>
         </div>
 
-        <!-- ZONE D'AFFICHAGE PDF (Canvas) -->
-        <div id="pdf-wrapper" class="hidden">
+        <!-- Scène PDF -->
+        <div id="pdf-wrapper" class="stage hidden">
             <div class="pdf-scaler" id="pdf-scaler">
                 <canvas id="pdf-canvas"></canvas>
             </div>
         </div>
 
-        <!-- ZONE D'AFFICHAGE IMAGE -->
-        <div id="image-wrapper" class="hidden">
-            <img id="image-viewer" class="image-display" src="" alt="Affichage image">
+        <!-- Scène image -->
+        <div id="image-wrapper" class="stage hidden">
+            <img id="image-viewer" src="" alt="" draggable="false">
         </div>
 
-        <!-- MESSAGE SI RIEN N'EST SELECTIONNÉ -->
+        <!-- Média illisible -->
+        <div id="media-error" class="media-error hidden">Ce fichier ne peut pas être affiché</div>
+
+        <!-- Aucune sélection -->
         <div id="no-pdf" class="no-pdf hidden">
             <div class="no-pdf-icon"></div>
             <div class="no-pdf-title">Aucun média</div>
@@ -55,7 +140,7 @@
 
         <div class="pdf-info" id="pdf-info">
             <span class="pdf-name" id="pdf-name">-</span>
-            <span class="pdf-page-indicator" id="pdf-page">Document 0 / 0</span>
+            <span class="pdf-page-indicator" id="pdf-page">—</span>
         </div>
 
         <div class="pdf-progress" id="pdf-progress" style="width: 0%"></div>
@@ -81,7 +166,6 @@
         <div class="page-dot active"></div>
     </div>
 
-    <!-- Script de logique d'affichage -->
     <script src="{{ url_for('static', filename='js/display3.js') }}"></script>
 </body>
 

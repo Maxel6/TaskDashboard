@@ -1,319 +1,493 @@
+'use strict';
+
+/* ============================================================================
+   Page 3 — affichage plein écran de PDFs et d'images.
+
+   Rendu :
+   - une playlist plate de "slides" (1 slide = 1 page de PDF, ou 1 image) ;
+   - le rendu est calé sur la taille RÉELLE du conteneur, pas sur window ;
+   - le PDF est rendu à devicePixelRatio (résolution max utile) puis contenu
+     entièrement dans la scène : jamais de rognage, jamais de scroll ;
+   - un jeton "generation" invalide tout rendu asynchrone devenu obsolète.
+
+   Diffusion :
+   - `selected_pdfs` est une liste ORDONNÉE : son ordre pilote la diffusion ;
+   - chaque page (ou image) reste affichée `duree_media` secondes ;
+   - la page 3 rend la main aux pages 1/2 après `duree3` secondes, puis REPREND
+     au cycle suivant là où elle s'était arrêtée : aucun document n'est
+     condamné à ne jamais passer ;
+   - un seul média sélectionné = affichage permanent, sans rotation.
+   ========================================================================== */
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdfjs/pdf.worker.min.js';
 
-// ==========================================
-// CONFIGURATION
-// ==========================================
-const DEFAULT_TIME_PER_PDF_MS = 60000;
+const CONFIG = {
+    API_URL: '/api/data',
+    MEDIA_BASE: '/uploads/pdfs/',
+    REFRESH_MS: 5000,
+    DEFAULT_MEDIA_SECONDS: 10,   // durée d'une page/image, réglable dans l'admin
+    MIN_SLIDE_MS: 3000,
+    RESIZE_DEBOUNCE_MS: 200,
+    POSITION_KEY: 'display3.position',
+    MAX_CANVAS_DIM: 8192,      // garde-fous navigateur
+    MAX_CANVAS_AREA: 32 * 1024 * 1024,
+    IMAGE_EXT: /\.(png|jpe?g|jfif|pjpeg|webp|gif|bmp|avif|svg)$/i,
+    PDF_EXT: /\.pdf$/i
+};
 
-// ==========================================
+const dom = {
+    container: document.getElementById('pdf-container'),
+    pdfWrapper: document.getElementById('pdf-wrapper'),
+    canvas: document.getElementById('pdf-canvas'),
+    imageWrapper: document.getElementById('image-wrapper'),
+    imageViewer: document.getElementById('image-viewer'),
+    mediaError: document.getElementById('media-error'),
+    noMedia: document.getElementById('no-pdf'),
+    loader: document.getElementById('loader'),
+    info: document.getElementById('pdf-info'),
+    name: document.getElementById('pdf-name'),
+    page: document.getElementById('pdf-page'),
+    progress: document.getElementById('pdf-progress'),
+    footerFill: document.getElementById('progress-fill'),
+    clock: document.getElementById('clock'),
+    date: document.getElementById('date'),
+    annonce1: document.getElementById('annonce-text'),
+    annonce2: document.getElementById('annonce-text2')
+};
 
-let pdfs = [], selectedPdfIds = [], currentPdfIndex = 0, rotationTimer = null, timePerPageMs = 5000;
-let lastPdfsHash = null, currentPdfDoc = null, currentPageNum = 1, currentPdfTotalPages = 1;
-let lastDisplayHash = null, switchTimer = null, pages_active = [1, 2, 3], page3Duration = 30;
-let hasOtherPages = false;
+const ctx = dom.canvas.getContext('2d', { alpha: false });
 
-const canvas = document.getElementById('pdf-canvas'), ctx = canvas.getContext('2d');
-const wrapper = document.getElementById('pdf-wrapper');
-const imageWrapper = document.getElementById('image-wrapper'); // Nouveau
-const imageViewer = document.getElementById('image-viewer');   // Nouveau
-const noPdf = document.getElementById('no-pdf');
-const loader = document.getElementById('loader');
-const pdfInfo = document.getElementById('pdf-info');
-const pdfName = document.getElementById('pdf-name');
-const pdfPage = document.getElementById('pdf-page');
-const pdfProgress = document.getElementById('pdf-progress');
+const state = {
+    media: [],
+    selectedIds: [],
+    slides: [],
+    slideIndex: 0,
+    signature: '',
+    slideMs: CONFIG.DEFAULT_MEDIA_SECONDS * 1000,
+    mediaSeconds: CONFIG.DEFAULT_MEDIA_SECONDS,
+    generation: 0,
+    page3Duration: 30,
+    lastPlaylistHash: null,
+    lastDisplayHash: null,
+    lastAnnonce: null
+};
 
-// Helper pour détecter si c'est une image
-function isImage(filename) {
-    return /\.(png|jpg|jpeg|webp)$/i.test(filename);
+const docCache = new Map();     // filename -> Promise<PDFDocumentProxy|null>
+let renderTask = null;
+let slideTimer = null;
+let switchTimer = null;
+let resizeTimer = null;
+let footerTimer = null;
+
+/* ---------------------------------------------------------------- helpers */
+
+function isImage(f) { return CONFIG.IMAGE_EXT.test(f || ''); }
+function isPdf(f) { return CONFIG.PDF_EXT.test(f || ''); }
+function mediaUrl(f) { return CONFIG.MEDIA_BASE + encodeURIComponent(f); }
+
+function displayName(item) {
+    const raw = item.original_name || item.filename || '';
+    return raw
+        .replace(/\.[^.]+$/, '')            // extension
+        .replace(/^[a-f0-9]{6,}[_-]/i, '')  // préfixe uuid/hash de l'upload
+        .replace(/[_-]+/g, ' ')
+        .trim() || 'Document';
 }
 
-function calculateAspectRatioFitScale(pageWidth, pageHeight, viewportWidth, viewportHeight, devicePixelRatio) {
-    return Math.min(viewportWidth / pageWidth, viewportHeight / pageHeight) * devicePixelRatio;
-}
-
-function setLoading(loading) {
-    if (loading) {
-        loader.classList.add('visible');
-    } else {
-        loader.classList.remove('visible');
-    }
-}
-
-function updatePdfInfo(name, page, total, isImg = false) {
-    pdfName.textContent = name || '-';
-    pdfPage.textContent = isImg ? `Image` : `Page ${page} / ${total}`;
-    
-    if (hasOtherPages) {
-        const progress = total > 0 ? (page / total) * 100 : 0;
-        pdfProgress.style.width = `${progress}%`;
-    } else {
-        pdfProgress.style.width = '100%';
-    }
-}
-
-function isSingleStaticPdf() {
-    return selectedPdfIds.length === 1 && currentPdfTotalPages === 1;
-}
-
-// Fonction pour afficher une IMAGE
-async function renderImage(filename, displayName) {
-    setLoading(true);
-    
-    // Switch visibility
-    wrapper.classList.add('hidden');
-    imageWrapper.classList.remove('hidden');
-    
-    imageViewer.src = `/uploads/pdfs/${filename}`;
-    
-    imageViewer.onload = () => {
-        setLoading(false);
-        updatePdfInfo(displayName, 1, 1, true);
+function stageSize() {
+    const r = dom.container.getBoundingClientRect();
+    return {
+        width: Math.max(1, r.width || dom.container.clientWidth || window.innerWidth),
+        height: Math.max(1, r.height || dom.container.clientHeight || window.innerHeight)
     };
 }
 
-// Fonction pour afficher un PDF
-async function renderPdfPage(pdfDoc, pageNum, pdfNameText = '') {
+function setLoading(on) {
+    dom.loader.classList.toggle('visible', !!on);
+}
+
+function showScene(scene) {   // 'pdf' | 'image' | 'error' | 'none'
+    dom.pdfWrapper.classList.toggle('hidden', scene !== 'pdf');
+    dom.imageWrapper.classList.toggle('hidden', scene !== 'image');
+    dom.mediaError.classList.toggle('hidden', scene !== 'error');
+    dom.noMedia.classList.toggle('hidden', scene !== 'none');
+    dom.info.classList.toggle('visible', scene === 'pdf' || scene === 'image');
+}
+
+/* ------------------------------------------------- position persistante */
+
+function readPosition(signature) {
     try {
-        const skipTransition = isSingleStaticPdf();
-
-        if (!skipTransition) {
-            setLoading(true);
-            canvas.classList.add('fade-out');
-            await new Promise(r => setTimeout(r, 150));
-        }
-
-        // Switch visibility
-        imageWrapper.classList.add('hidden');
-        wrapper.classList.remove('hidden');
-
-        const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.0 });
-        const dpr = window.devicePixelRatio || 1;
-        const scale = calculateAspectRatioFitScale(viewport.width, viewport.height, window.innerWidth, window.innerHeight, dpr);
-        const scaledViewport = page.getViewport({ scale });
-
-        canvas.width = scaledViewport.width;
-        canvas.height = scaledViewport.height;
-        canvas.style.width = `${viewport.width * (scale / dpr)}px`;
-        canvas.style.height = `${viewport.height * (scale / dpr)}px`;
-
-        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-
-        if (!skipTransition) {
-            canvas.classList.remove('fade-out');
-            setLoading(false);
-        }
-
-        updatePdfInfo(pdfNameText, pageNum, currentPdfTotalPages);
-    } catch (error) {
-        console.error('Error rendering PDF:', error);
-        setLoading(false);
+        const raw = localStorage.getItem(CONFIG.POSITION_KEY);
+        if (!raw) return 0;
+        const saved = JSON.parse(raw);
+        if (saved.signature !== signature) return 0;   // la playlist a changé
+        return Number(saved.index) || 0;
+    } catch (_) {
+        return 0;
     }
 }
 
-function getDisplayName(filename) {
-    return filename.replace(/\.(pdf|png|jpg|jpeg)$/i, '').replace(/[_-]/g, ' ').replace(/^[a-z0-9]{8}_/i, '').trim();
+function writePosition() {
+    try {
+        localStorage.setItem(CONFIG.POSITION_KEY, JSON.stringify({
+            signature: state.signature,
+            index: state.slideIndex
+        }));
+    } catch (_) { /* mode privé ou stockage plein : sans conséquence */ }
 }
 
-async function loadMedia(filename) {
-    const wasEmpty = !currentPdfDoc;
-    const displayName = getDisplayName(filename);
 
-    if (isImage(filename)) {
-        if (currentPdfDoc) {
-            currentPdfDoc.destroy();
-            currentPdfDoc = null;
-        }
-        currentPdfTotalPages = 1;
-        currentPageNum = 1;
-        await renderImage(filename, displayName);
-    } else {
-        if (!wasEmpty) setLoading(true);
-        if (currentPdfDoc) currentPdfDoc.destroy();
-        
-        currentPdfDoc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${filename}` }).promise;
-        currentPdfTotalPages = currentPdfDoc.numPages;
-        currentPageNum = 1;
+/* ------------------------------------------------------------- documents */
 
-        await renderPdfPage(currentPdfDoc, currentPageNum, displayName);
-        setLoading(false);
+function getDoc(filename) {
+    if (docCache.has(filename)) return docCache.get(filename);
+    const p = pdfjsLib.getDocument({ url: mediaUrl(filename) }).promise
+        .catch(err => {
+            console.error('[display3] PDF illisible :', filename, err);
+            return null;
+        });
+    docCache.set(filename, p);
+    return p;
+}
+
+async function pruneDocCache(keep) {
+    for (const [filename, promise] of Array.from(docCache.entries())) {
+        if (keep.has(filename)) continue;
+        docCache.delete(filename);
+        try { const doc = await promise; if (doc) doc.destroy(); } catch (_) { /* ignore */ }
     }
 }
 
-function showNoPdf() {
-    wrapper.classList.add('hidden');
-    imageWrapper.classList.add('hidden');
-    noPdf.classList.remove('hidden');
-    pdfInfo.classList.remove('visible');
-    pdfProgress.style.width = '0%';
+/* ---------------------------------------------------------------- rendu */
+
+async function renderPdfSlide(slide, gen, silent) {
+    const doc = await getDoc(slide.filename);
+    if (!doc || gen !== state.generation) return !!doc;
+
+    const page = await doc.getPage(slide.pageNum);
+    if (gen !== state.generation) return true;
+
+    const box = stageSize();
+    const base = page.getViewport({ scale: 1 });
+    const dpr = window.devicePixelRatio || 1;
+
+    // échelle d'affichage : la page entière tient dans la scène
+    const cssScale = Math.min(box.width / base.width, box.height / base.height);
+
+    // échelle de rendu : cssScale * dpr, bridée par les limites canvas
+    const renderScale = Math.min(
+        cssScale * dpr,
+        CONFIG.MAX_CANVAS_DIM / base.width,
+        CONFIG.MAX_CANVAS_DIM / base.height,
+        Math.sqrt(CONFIG.MAX_CANVAS_AREA / (base.width * base.height))
+    );
+
+    const viewport = page.getViewport({ scale: renderScale });
+
+    // rendu hors écran puis blit : pas de flash blanc pendant le rendu
+    const off = document.createElement('canvas');
+    off.width = Math.max(1, Math.floor(viewport.width));
+    off.height = Math.max(1, Math.floor(viewport.height));
+    const offCtx = off.getContext('2d', { alpha: false });
+    offCtx.fillStyle = '#ffffff';
+    offCtx.fillRect(0, 0, off.width, off.height);
+
+    if (renderTask) { try { renderTask.cancel(); } catch (_) { } }
+    renderTask = page.render({ canvasContext: offCtx, viewport });
+
+    try {
+        await renderTask.promise;
+    } catch (err) {
+        if (err && err.name === 'RenderingCancelledException') return true;
+        throw err;
+    } finally {
+        renderTask = null;
+        page.cleanup();
+    }
+
+    if (gen !== state.generation) return true;
+
+    dom.canvas.width = off.width;
+    dom.canvas.height = off.height;
+    dom.canvas.style.width = Math.floor(base.width * cssScale) + 'px';
+    dom.canvas.style.height = Math.floor(base.height * cssScale) + 'px';
+    ctx.drawImage(off, 0, 0);
+
+    showScene('pdf');
+    return true;
 }
 
-function showPdfContainer() {
-    noPdf.classList.add('hidden');
-    pdfInfo.classList.add('visible');
+function renderImageSlide(slide, gen) {
+    return new Promise(resolve => {
+        const probe = new Image();
+        probe.onload = () => {
+            if (gen !== state.generation) return resolve(true);
+            dom.imageViewer.src = probe.src;
+            dom.imageViewer.alt = slide.name;
+            showScene('image');
+            resolve(true);
+        };
+        probe.onerror = () => {
+            console.error('[display3] image illisible :', slide.filename);
+            resolve(false);
+        };
+        probe.src = mediaUrl(slide.filename);
+    });
 }
 
-async function advanceSlide() {
-    if (selectedPdfIds.length === 0) return;
+async function renderSlide(slide, gen, silent) {
+    if (!slide) return;
+    if (!silent) setLoading(true);
 
-    // Si on est sur un PDF et qu'il reste des pages
-    if (currentPdfDoc && currentPageNum < currentPdfTotalPages) {
-        currentPageNum++;
-        const currentPdf = pdfs.find(p => p.id === selectedPdfIds[currentPdfIndex]);
-        await renderPdfPage(currentPdfDoc, currentPageNum, getDisplayName(currentPdf.filename));
-    } else {
-        // Sinon, on passe au média suivant (Image ou PDF)
-        currentPdfIndex = (currentPdfIndex + 1) % selectedPdfIds.length;
-        const mediaId = selectedPdfIds[currentPdfIndex];
-        const media = pdfs.find(p => p.id === mediaId);
-        if (media) {
-            await loadMedia(media.filename);
+    let ok = false;
+    try {
+        ok = slide.type === 'image'
+            ? await renderImageSlide(slide, gen)
+            : await renderPdfSlide(slide, gen, silent);
+    } catch (err) {
+        console.error('[display3] rendu impossible :', slide.filename, err);
+        ok = false;
+    }
+
+    if (gen !== state.generation) return;
+    if (!ok) showScene('error');
+
+    setLoading(false);
+    updateInfo(slide);
+}
+
+function updateInfo(slide) {
+    dom.name.textContent = slide.name;
+    dom.page.textContent = slide.type === 'image'
+        ? 'Image'
+        : `Page ${slide.pageNum} / ${slide.totalPages}`;
+
+    const total = state.slides.length;
+    const pct = total ? ((state.slideIndex + 1) / total) * 100 : 0;
+    dom.progress.style.width = pct.toFixed(2) + '%';
+}
+
+/* ------------------------------------------------------------- playlist */
+
+async function buildSlides(gen) {
+    const slides = [];
+    for (const id of state.selectedIds) {          // ordre = ordre de diffusion
+        const item = state.media.find(m => m.id === id);
+        if (!item || !item.filename) continue;
+
+        const name = displayName(item);
+
+        if (isImage(item.filename)) {
+            slides.push({ type: 'image', filename: item.filename, name, pageNum: 1, totalPages: 1 });
+            continue;
+        }
+        if (!isPdf(item.filename)) continue;
+
+        const doc = await getDoc(item.filename);
+        if (gen !== state.generation) return null;
+        if (!doc) continue;
+
+        for (let p = 1; p <= doc.numPages; p++) {
+            slides.push({ type: 'pdf', filename: item.filename, name, pageNum: p, totalPages: doc.numPages });
         }
     }
+    return slides;
 }
 
-async function startPresentation() {
-    if (rotationTimer) clearInterval(rotationTimer);
-    rotationTimer = null;
+function scheduleNext(gen) {
+    clearTimeout(slideTimer);
+    if (state.slides.length <= 1) return;          // un seul média : pas de rotation
+    slideTimer = setTimeout(() => {
+        if (gen !== state.generation) return;
+        state.slideIndex = (state.slideIndex + 1) % state.slides.length;
+        writePosition();
+        showCurrent(gen);
+    }, state.slideMs);
+}
 
-    if (selectedPdfIds.length === 0) {
-        showNoPdf();
+async function showCurrent(gen) {
+    const slide = state.slides[state.slideIndex];
+    if (!slide) { showScene('none'); return; }
+    await renderSlide(slide, gen, false);
+    if (gen !== state.generation) return;
+    scheduleNext(gen);
+}
+
+async function rebuildPlaylist() {
+    const gen = ++state.generation;
+    clearTimeout(slideTimer);
+    if (renderTask) { try { renderTask.cancel(); } catch (_) { } renderTask = null; }
+
+    if (!state.selectedIds.length) {
+        showScene('none');
+        dom.progress.style.width = '0%';
+        await pruneDocCache(new Set());
         return;
     }
 
-    showPdfContainer();
+    setLoading(true);
+    const slides = await buildSlides(gen);
+    if (gen !== state.generation) return;
 
-    const mediaId = selectedPdfIds[currentPdfIndex];
-    const media = pdfs.find(p => p.id === mediaId);
-    
-    if (media) {
-        await loadMedia(media.filename);
-        if (selectedPdfIds.length > 1 || currentPdfTotalPages > 1) {
-            rotationTimer = setInterval(advanceSlide, timePerPageMs);
-        }
-    } else {
-        showNoPdf();
+    state.slides = slides || [];
+    state.signature = state.selectedIds.join(',') + '#' + state.slides.length;
+
+    // reprise du carrousel là où le cycle précédent s'était arrêté
+    const resumed = readPosition(state.signature);
+    state.slideIndex = state.slides.length ? Math.min(resumed, state.slides.length - 1) : 0;
+    state.slideMs = Math.max(state.mediaSeconds * 1000, CONFIG.MIN_SLIDE_MS);
+
+    await pruneDocCache(new Set(state.slides.map(s => s.filename)));
+    if (gen !== state.generation) return;
+
+    if (!state.slides.length) {
+        setLoading(false);
+        showScene('none');
+        dom.progress.style.width = '0%';
+        return;
     }
+
+    writePosition();
+    await showCurrent(gen);
 }
 
-async function calculateTimePerPage() {
-    if (!selectedPdfIds.length) return 5000;
+/* ------------------------------------------- rotation entre les pages 1/2/3 */
 
-    if (!hasOtherPages) {
-        return DEFAULT_TIME_PER_PDF_MS; 
-    }
+function goToPage(page) {
+    window.location.href = page === 1 ? '/display1' : '/display2';
+}
 
-    // Calcul complexe pour répartir la durée totale sur toutes les pages de tous les fichiers
-    const pageCounts = await Promise.all(selectedPdfIds.map(async (id) => {
-        const media = pdfs.find(p => p.id === id);
-        if (!media) return 0;
-        if (isImage(media.filename)) return 1;
-        try {
-            const doc = await pdfjsLib.getDocument({ url: `/uploads/pdfs/${media.filename}` }).promise;
-            const count = doc.numPages;
-            doc.destroy();
-            return count;
-        } catch (e) { return 1; }
-    }));
-
-    const totalPages = pageCounts.reduce((a, b) => a + b, 0);
-    return Math.max((page3Duration * 1000) / totalPages, 3000);
+function startFooterCountdown(durationMs) {
+    clearInterval(footerTimer);
+    if (!dom.footerFill) return;
+    const start = Date.now();
+    dom.footerFill.style.width = '0%';
+    footerTimer = setInterval(() => {
+        const pct = Math.min(100, ((Date.now() - start) / durationMs) * 100);
+        dom.footerFill.style.width = pct.toFixed(2) + '%';
+        if (pct >= 100) clearInterval(footerTimer);
+    }, 250);
 }
 
 function applyDisplaySettings(display) {
     if (!display) return;
-    const displayKey = JSON.stringify(display);
-    if (displayKey === lastDisplayHash) return;
-    lastDisplayHash = displayKey;
+    const key = JSON.stringify(display);
+    if (key === state.lastDisplayHash) return;
+    state.lastDisplayHash = key;
 
-    const newPages = display.pages || [1, 2];
-    const newDuree3 = display.duree3 || 30;
+    const pages = Array.isArray(display.pages) && display.pages.length ? display.pages : [1, 2];
+    const duree = Number(display.duree3);
+    state.page3Duration = duree > 0 ? duree : 30;
 
-    page3Duration = newDuree3;
-    
-    if (!newPages.includes(3)) {
-        window.location.href = newPages.includes(1) ? '/display1' : '/display2';
+    const perMedia = Number(display.duree_media);
+    state.mediaSeconds = perMedia > 0 ? perMedia : CONFIG.DEFAULT_MEDIA_SECONDS;
+    state.slideMs = Math.max(state.mediaSeconds * 1000, CONFIG.MIN_SLIDE_MS);
+
+    if (!pages.includes(3)) {
+        goToPage(pages.includes(1) ? 1 : 2);
         return;
     }
 
-    hasOtherPages = newPages.includes(1) || newPages.includes(2);
-    pages_active = newPages;
+    clearTimeout(switchTimer);
+    clearInterval(footerTimer);
 
-    if (switchTimer) clearTimeout(switchTimer);
-    if (newPages.length > 1) {
-        const nextPage = newPages[(newPages.indexOf(3) + 1) % newPages.length];
+    if (pages.length > 1) {
+        const next = pages[(pages.indexOf(3) + 1) % pages.length];
+        const ms = state.page3Duration * 1000;
+        startFooterCountdown(ms);
         switchTimer = setTimeout(() => {
-            window.location.href = nextPage === 1 ? '/display1' : '/display2';
-        }, page3Duration * 1000);
+            writePosition();       // on quitte : la reprise repartira d'ici
+            goToPage(next);
+        }, ms);
+    } else if (dom.footerFill) {
+        dom.footerFill.style.width = '100%';
     }
 }
 
-async function updatePdfs(data) {
-    const pdfsHash = JSON.stringify(data.pdfs) + JSON.stringify(data.selected_pdfs);
-    if (pdfsHash === lastPdfsHash) return;
-    lastPdfsHash = pdfsHash;
-
-    pdfs = data.pdfs || [];
-    selectedPdfIds = data.selected_pdfs || [];
-
-    updateAnnonces(data.annonce);
-    applyDisplaySettings(data.display);
-
-    const newTimePerPage = await calculateTimePerPage();
-    timePerPageMs = newTimePerPage;
-
-    currentPdfIndex = 0;
-    await startPresentation();
-}
+/* ------------------------------------------------------------ données */
 
 async function refreshData() {
+    let data;
     try {
-        const res = await fetch('/api/data');
-        const data = await res.json();
-        await updatePdfs(data);
-    } catch (e) { console.error('Error fetching data:', e); }
+        const res = await fetch(CONFIG.API_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        data = await res.json();
+    } catch (err) {
+        console.error('[display3] /api/data injoignable', err);
+        return;
+    }
+
+    updateAnnonce(data.annonce);
+    applyDisplaySettings(data.display);
+
+    const hash = JSON.stringify(data.pdfs) + '|' + JSON.stringify(data.selected_pdfs);
+    if (hash === state.lastPlaylistHash) return;
+    state.lastPlaylistHash = hash;
+
+    state.media = data.pdfs || [];
+    state.selectedIds = data.selected_pdfs || [];
+    await rebuildPlaylist();
 }
 
-// ==========================================
-// HORLOGE, DATE, ANNONCES (Inchangés)
-// ==========================================
+/* -------------------------------------------------- horloge / annonces */
+
 function updateClock() {
     const now = new Date();
-    const clockEl = document.getElementById('clock');
-    if (clockEl) clockEl.textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    if (dom.clock) {
+        dom.clock.textContent =
+            `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
 }
+
 function updateDate() {
     const now = new Date();
-    const dateEl = document.getElementById('date');
-    if (dateEl) dateEl.textContent = now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+    if (dom.date) {
+        dom.date.textContent = now
+            .toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+            .toUpperCase();
+    }
 }
+
+function updateAnnonce(annonce) {
+    const text = annonce || '';
+    if (text === state.lastAnnonce) return;
+    state.lastAnnonce = text;
+    if (dom.annonce1) dom.annonce1.textContent = text;
+    if (dom.annonce2) dom.annonce2.textContent = text;
+    const duration = Math.max(15, text.length * 0.15);
+    document.documentElement.style.setProperty('--marquee-duration', `${duration}s`);
+}
+
+/* ------------------------------------------------------ redimensionnement */
+
+function handleResize() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        const slide = state.slides[state.slideIndex];
+        if (slide && slide.type === 'pdf') renderSlide(slide, state.generation, true);
+    }, CONFIG.RESIZE_DEBOUNCE_MS);
+}
+
+window.addEventListener('resize', handleResize);
+window.addEventListener('orientationchange', handleResize);
+if (window.ResizeObserver) new ResizeObserver(handleResize).observe(dom.container);
+
+window.addEventListener('beforeunload', () => {
+    writePosition();
+    clearTimeout(slideTimer);
+    clearTimeout(switchTimer);
+    clearInterval(footerTimer);
+    state.generation++;
+    pruneDocCache(new Set());
+});
+
+/* --------------------------------------------------------------- démarrage */
+
+updateClock();
+updateDate();
 setInterval(updateClock, 1000);
 setInterval(updateDate, 60000);
-updateClock(); updateDate();
 
-let currentAnnonce = '';
-function updateAnnonces(annonce) {
-    if (annonce === currentAnnonce) return;
-    currentAnnonce = annonce || '';
-    const t1 = document.getElementById('annonce-text');
-    const t2 = document.getElementById('annonce-text2');
-    if (t1) t1.textContent = currentAnnonce;
-    if (t2) t2.textContent = currentAnnonce;
-    const marqueeDuration = Math.max(15, currentAnnonce.length * 0.15);
-    document.documentElement.style.setProperty('--marquee-duration', `${marqueeDuration}s`);
-}
-
-// Nettoyage et Resize
-window.addEventListener('beforeunload', () => {
-    if (rotationTimer) clearInterval(rotationTimer);
-    if (switchTimer) clearTimeout(switchTimer);
-    if (currentPdfDoc) currentPdfDoc.destroy();
-});
-
-window.addEventListener('resize', async () => {
-    if (currentPdfDoc) await renderPdfPage(currentPdfDoc, currentPageNum);
-});
-
-setInterval(refreshData, 5000);
+setInterval(refreshData, CONFIG.REFRESH_MS);
 refreshData();

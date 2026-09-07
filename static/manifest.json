@@ -2,11 +2,12 @@
     "name": "Dashboard Manager",
     "short_name": "Dashboard",
     "description": "Suivi de maintenance en temps réel",
-    "start_url": "/admin",
+    "start_url": "/dashboard",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#0b1220",
     "theme_color": "#0b1220",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icons": [
         {
             "src": "/static/img/logo.png",
