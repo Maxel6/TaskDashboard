@@ -21,6 +21,18 @@
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/static/js/pdfjs/pdf.worker.min.js';
 
+// Depuis PDF.js v4 le worker s'appelle pdf.worker.min.mjs : un chemin faux
+// fait échouer TOUS les PDF sans message clair. On le vérifie au démarrage.
+(function checkWorker() {
+    const src = pdfjsLib.GlobalWorkerOptions.workerSrc;
+    console.info('[display3] PDF.js', pdfjsLib.version || '(version inconnue)', '| worker :', src);
+    fetch(src, { method: 'HEAD' })
+        .then(r => {
+            if (!r.ok) console.error(`[display3] worker introuvable (HTTP ${r.status}) : ${src}`);
+        })
+        .catch(err => console.error('[display3] worker inaccessible :', src, err));
+})();
+
 const CONFIG = {
     API_URL: '/api/data',
     MEDIA_BASE: '/uploads/pdfs/',
@@ -96,10 +108,17 @@ function displayName(item) {
 
 function stageSize() {
     const r = dom.container.getBoundingClientRect();
-    return {
-        width: Math.max(1, r.width || dom.container.clientWidth || window.innerWidth),
-        height: Math.max(1, r.height || dom.container.clientHeight || window.innerHeight)
-    };
+    let width = r.width || dom.container.clientWidth;
+    let height = r.height || dom.container.clientHeight;
+
+    // Un conteneur non mesurable (CSS concurrente, position:absolute sans
+    // dimensions) donnerait un canvas de 1 px : fond visible, aucun contenu.
+    if (width < 50 || height < 50) {
+        console.warn(`[display3] conteneur non mesurable (${Math.round(width)}x${Math.round(height)}) — repli sur la fenêtre`);
+        width = window.innerWidth;
+        height = window.innerHeight * 0.8;
+    }
+    return { width: Math.max(1, width), height: Math.max(1, height) };
 }
 
 function setLoading(on) {
@@ -140,10 +159,14 @@ function writePosition() {
 
 /* ------------------------------------------------------------- documents */
 
+const docErrors = new Map();   // filename -> message d'erreur
+
 function getDoc(filename) {
     if (docCache.has(filename)) return docCache.get(filename);
     const p = pdfjsLib.getDocument({ url: mediaUrl(filename) }).promise
         .catch(err => {
+            const reason = err && (err.message || err.name) || 'erreur inconnue';
+            docErrors.set(filename, reason);
             console.error('[display3] PDF illisible :', filename, err);
             return null;
         });
@@ -215,7 +238,25 @@ async function renderPdfSlide(slide, gen, silent) {
     ctx.drawImage(off, 0, 0);
 
     showScene('pdf');
+    auditCanvas();
     return true;
+}
+
+/* Vérifie que le canvas est réellement visible : un rendu réussi mais un
+   élément masqué par une CSS concurrente donne un écran vide sans erreur. */
+function auditCanvas() {
+    const rect = dom.canvas.getBoundingClientRect();
+    if (rect.width >= 50 && rect.height >= 50) return;
+
+    const style = window.getComputedStyle(dom.canvas);
+    const parent = window.getComputedStyle(dom.pdf || dom.pdfWrapper);
+    console.error(
+        `[display3] canvas rendu (${dom.canvas.width}x${dom.canvas.height} px) mais invisible à l'écran :\n` +
+        `  boîte      : ${Math.round(rect.width)}x${Math.round(rect.height)}\n` +
+        `  canvas     : display=${style.display} visibility=${style.visibility} opacity=${style.opacity} transform=${style.transform}\n` +
+        `  conteneur  : display=${parent.display} position=${parent.position} overflow=${parent.overflow}\n` +
+        `  → une règle CSS de display.css ou display3.css masque la scène.`
+    );
 }
 
 function renderImageSlide(slide, gen) {
@@ -286,7 +327,17 @@ async function buildSlides(gen) {
 
         const doc = await getDoc(item.filename);
         if (gen !== state.generation) return null;
-        if (!doc) continue;
+
+        if (!doc) {
+            // on garde une slide « en erreur » : un PDF qui disparaît sans
+            // rien afficher est impossible à diagnostiquer sur un écran mural
+            slides.push({
+                type: 'error', filename: item.filename, name,
+                pageNum: 1, totalPages: 1,
+                reason: docErrors.get(item.filename) || 'fichier illisible'
+            });
+            continue;
+        }
 
         for (let p = 1; p <= doc.numPages; p++) {
             slides.push({ type: 'pdf', filename: item.filename, name, pageNum: p, totalPages: doc.numPages });

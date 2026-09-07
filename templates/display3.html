@@ -10,8 +10,9 @@
     <script src="{{ url_for('static', filename='js/pdfjs/pdf.min.js') }}"></script>
     <style>
         /* ------------------------------------------------------------------
-           Layout de la page : hauteur fixée à l'écran, aucun scroll possible.
-           La scène média occupe tout l'espace restant entre header et footer.
+           Ces règles doivent l'emporter sur display.css / display3.css :
+           sélecteurs d'id + !important sur les propriétés structurantes.
+           La scène média ne dépend plus d'aucun style hérité.
            ------------------------------------------------------------------ */
         html,
         body {
@@ -32,54 +33,62 @@
             flex: 0 0 auto;
         }
 
-        .pdf-container {
-            flex: 1 1 auto;
-            position: relative;
-            min-height: 0;
-            /* indispensable : sans ça le flex enfant déborde */
-            overflow: hidden;
+        #pdf-container {
+            flex: 1 1 auto !important;
+            position: relative !important;
+            min-height: 0 !important;   /* sans ça, l'enfant flex déborde */
+            overflow: hidden !important;
         }
 
-        /* Les deux scènes se superposent et remplissent le conteneur */
-        .stage {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+        #pdf-wrapper,
+        #image-wrapper {
+            position: absolute !important;
+            inset: 0 !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+            transform: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 1;
         }
 
-        .stage.hidden {
-            display: none !important;
-        }
-
+        /* id + classe : l'emporte sur les règles ci-dessus */
+        #pdf-wrapper.hidden,
+        #image-wrapper.hidden,
         .hidden {
             display: none !important;
         }
 
         #pdf-canvas {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            transform: none !important;
+            opacity: 1 !important;
         }
 
         #image-viewer {
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
             object-fit: contain;
-            image-orientation: from-image;
+            transform: none !important;
             -webkit-user-drag: none;
         }
 
-        /* Les overlays restent au-dessus de la scène */
         #loader,
-        .pdf-info,
-        .pdf-progress,
-        .no-pdf {
+        #pdf-info,
+        #pdf-progress,
+        #no-pdf,
+        #media-error {
             position: absolute;
             z-index: 5;
         }
@@ -89,14 +98,15 @@
             z-index: 6;
         }
 
-        .media-error {
-            position: absolute;
+        #media-error {
             inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font: 500 1.4rem/1.4 system-ui, sans-serif;
-            opacity: .6;
+            text-align: center;
+            padding: 2rem;
+            font: 500 1.4rem/1.4 system-ui, -apple-system, sans-serif;
+            opacity: .65;
             z-index: 4;
         }
     </style>
@@ -116,20 +126,18 @@
             <div class="loader-text">Chargement</div>
         </div>
 
-        <!-- Scène PDF -->
-        <div id="pdf-wrapper" class="stage hidden">
-            <div class="pdf-scaler" id="pdf-scaler">
-                <canvas id="pdf-canvas"></canvas>
-            </div>
+        <!-- Scène PDF — plus de div .pdf-scaler intermédiaire -->
+        <div id="pdf-wrapper" class="hidden">
+            <canvas id="pdf-canvas"></canvas>
         </div>
 
         <!-- Scène image -->
-        <div id="image-wrapper" class="stage hidden">
+        <div id="image-wrapper" class="hidden">
             <img id="image-viewer" src="" alt="" draggable="false">
         </div>
 
         <!-- Média illisible -->
-        <div id="media-error" class="media-error hidden">Ce fichier ne peut pas être affiché</div>
+        <div id="media-error" class="hidden"></div>
 
         <!-- Aucune sélection -->
         <div id="no-pdf" class="no-pdf hidden">
