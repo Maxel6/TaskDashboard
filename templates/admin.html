@@ -185,39 +185,73 @@
 
         </div>
 
+        <!-- Remplace le bloc <div class="tab-panel hidden" id="panel3"> de admin.html -->
+
         <div class="tab-panel hidden" id="panel3">
 
             <div class="cards-grid">
                 <div class="card">
-                    <div class="card-title">📄 Upload PDF</div>
+                    <div class="card-title">Ajouter un média</div>
                     <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
-
-                        <!-- Avant : name="pdf" et accept=".pdf" -->
-                        <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg" required>
-
-                        <button type="submit">Télécharger</button>
+                        <input type="file" name="file" multiple
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,application/pdf,image/*" required>
+                        <button type="submit" class="btn btn-primary">Envoyer</button>
                     </form>
+                    <p class="card-hint">PDF, PNG, JPG, WEBP, GIF ou BMP — 50 Mo maximum par fichier.</p>
                 </div>
 
                 {% if data.pdfs %}
                 <div class="card">
-                    <div class="card-title">✅ Sélectionner les PDFs à afficher</div>
-                    <form action="/update_selected_pdfs" method="POST" id="pdf-selection-form">
-                        <div class="pdf-list">
+                    <div class="card-title">Médias affichés sur l'écran</div>
+
+                    <form action="{{ url_for('update_selected_pdfs') }}" method="POST" id="pdf-selection-form">
+
+                        <p class="card-hint">
+                            Cochez les médias à diffuser. Ils défilent de haut en bas, dans cet ordre.
+                            Un seul média coché reste affiché en permanence.
+                        </p>
+
+                        <div class="pdf-list" id="pdf-list">
                             {% for pdf in data.pdfs %}
-                            <div class="pdf-item">
+                            <div class="pdf-item" data-id="{{ pdf.id }}">
+                                <span class="pdf-rank"></span>
+
                                 <label class="pdf-checkbox-label">
-                                    <input type="checkbox" name="selected_pdfs" value="{{ pdf.id }}" {% if pdf.id in
-                                        data.selected_pdfs %}checked{% endif %}>
+                                    <input type="checkbox" name="selected_pdfs" value="{{ pdf.id }}"
+                                        onchange="refreshPdfRanks()" {% if pdf.id in data.selected_pdfs %}checked{%
+                                        endif %}>
                                     <span class="pdf-name">{{ pdf.original_name }}</span>
+                                    <span class="pdf-type">{{ 'PDF' if pdf.type == 'pdf' else 'Image' }}</span>
                                 </label>
-                                <a href="/delete_pdf/{{ pdf.id }}" class="btn-delete-pdf"
-                                    onclick="return confirm('Supprimer ce PDF ?')">✕</a>
+
+                                <span class="pdf-order-actions">
+                                    <button type="button" class="btn-move" title="Monter"
+                                        onclick="movePdf(this, -1)">▲</button>
+                                    <button type="button" class="btn-move" title="Descendre"
+                                        onclick="movePdf(this, 1)">▼</button>
+                                </span>
+
+                                <a href="{{ url_for('delete_file', file_id=pdf.id) }}" class="btn-delete-pdf"
+                                    onclick="return confirm('Supprimer « {{ pdf.original_name }} » ?')">✕</a>
                             </div>
                             {% endfor %}
                         </div>
+
+                        <label class="slider-label" for="slider-duree-media">
+                            Durée d'affichage par page ou image :
+                            <span id="duree-media-label"></span>
+                        </label>
+                        <input type="range" id="slider-duree-media" name="duree_media" min="3" max="120" step="1"
+                            value="{{ data.display.duree_media | default(10) }}"
+                            oninput="updateSliderLabel(this.value, 'duree-media-label')">
+
                         <button type="submit" class="btn btn-save">Enregistrer la sélection</button>
                     </form>
+                </div>
+                {% else %}
+                <div class="card">
+                    <div class="card-title">Aucun média</div>
+                    <p class="card-hint">Envoyez un PDF ou une image pour l'afficher sur la page 3.</p>
                 </div>
                 {% endif %}
 
@@ -225,8 +259,9 @@
 
             {% if data.pdfs %}
             <div class="danger-zone">
-                <a href="/delete_all_pdfs" onclick="return confirm('Supprimer TOUS les PDFs ?')" class="btn-danger">
-                    🗑️ Tout supprimer
+                <a href="{{ url_for('delete_all_pdfs') }}" onclick="return confirm('Supprimer tous les médias ?')"
+                    class="btn-danger">
+                    Tout supprimer
                 </a>
             </div>
             {% endif %}
